@@ -26,6 +26,11 @@ ldt_desc:
     .word KERNEL_LDT
     .long ldt
 
+    .word 0 # Padding
+gdt_desc:
+    .word gdt_bottom - gdt - 1 # size of gdt
+    .long gdt # linear address of gdt
+
     .align 4
 tss:
 _tss:

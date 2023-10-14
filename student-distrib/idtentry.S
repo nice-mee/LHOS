@@ -16,6 +16,8 @@ ret_from_interrupt_handler:
 
 /* Syscall Handling. */
 syscall:
+    pushl $0
+    pushal
     jmp ret_from_interrupt_handler
 
 

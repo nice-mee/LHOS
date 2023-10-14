@@ -45,6 +45,14 @@ int idt_test(){
 	return result;
 }
 
+int div_by_zero() {
+	TEST_HEADER;
+
+	int a = 0;
+	int b = 1 / a;
+	// This should raise an exception
+}
+
 // add more tests here
 
 /* Checkpoint 2 tests */
@@ -56,5 +64,6 @@ int idt_test(){
 /* Test suite entry point */
 void launch_tests(){
 	TEST_OUTPUT("idt_test", idt_test());
+	TEST_OUTPUT("div_by_zero", div_by_zero());
 	// launch your tests here
 }

@@ -3,6 +3,7 @@
  */
 
 #include "idt.h"
+#include "lib.h"
 
 void temp_syscall_handler() {
     printf("Syscall invoked\n");

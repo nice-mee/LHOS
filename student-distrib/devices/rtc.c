@@ -28,9 +28,9 @@ void __intr_RTC_handler(void) {
     rtc_time_counter ++;
 
     /* for cp1 */
-    test_interrupts();    
+    test_interrupts();
 
-    outb(RTC_C, RTC_CMOS_PORT); // select register C
+    outb(RTC_C &0x0F, RTC_PORT); // select register C
     inb(RTC_CMOS_PORT);		    // just throw away contents
 
     send_eoi(RTC_IRQ);

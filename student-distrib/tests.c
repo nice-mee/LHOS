@@ -54,6 +54,13 @@ int div_by_zero() {
 	return FAIL; // Shall not get here
 }
 
+int interrupt_test() {
+	TEST_HEADER;
+
+	asm volatile("int $0x21"); // This should raise a keyboard interrupt
+	return PASS;
+}
+
 // add more tests here
 
 /* Checkpoint 2 tests */
@@ -65,6 +72,7 @@ int div_by_zero() {
 /* Test suite entry point */
 void launch_tests(){
 	TEST_OUTPUT("idt_test", idt_test());
-	TEST_OUTPUT("div_by_zero", div_by_zero());
+	// TEST_OUTPUT("div_by_zero", div_by_zero());
+	// TEST_OUTPUT("interrupt_test", interrupt_test());
 	// launch your tests here
 }

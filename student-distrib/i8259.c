@@ -11,11 +11,6 @@ uint8_t slave_mask;  /* IRQs 8-15 */
 
 /* Initialize the 8259 PIC */
 void i8259_init(void) {
-    /* mask all the interrupts on the PIC */
-    uint8_t INTR_MASK = 0xFF;
-    outb(INTR_MASK, MASTER_8259_PORT + 1);   // 21h
-    outb(INTR_MASK, SLAVE_8259_PORT + 1);    // A1h
-
     /* initialize the PIC */
     outb(ICW1, MASTER_8259_PORT);
     outb(ICW1, SLAVE_8259_PORT);
@@ -28,6 +23,11 @@ void i8259_init(void) {
 
     outb(ICW4, MASTER_8259_PORT + 1);        // 21h
     outb(ICW4, SLAVE_8259_PORT + 1);         // A1h
+
+    /* mask all the interrupts on the PIC */
+    uint8_t INTR_MASK = 0xFF;
+    outb(INTR_MASK, MASTER_8259_PORT + 1);   // 21h
+    outb(INTR_MASK, SLAVE_8259_PORT + 1);    // A1h
 
     /* unmask the port on the M PIC which connects the S PIC */
     INTR_MASK = 0xFB; 
@@ -55,7 +55,7 @@ void enable_irq(uint32_t irq_num) {
     else {  // S PIC
         cur_irq = inb(SLAVE_8259_PORT + 1);
         /* update the specified IRQ*/ 
-        cur_irq &= ~(1<<irq_num);
+        cur_irq &= ~(1<<(irq_num - 8));
         outb(cur_irq, SLAVE_8259_PORT + 1);
     }
     // spin_lock_irqrestore(irq_status_lock[irq_num], irq_flag);
@@ -82,7 +82,7 @@ void disable_irq(uint32_t irq_num) {
     else {  // S PIC
         cur_irq = inb(SLAVE_8259_PORT + 1);
         /* update the specified IRQ*/ 
-        cur_irq |= (1<<irq_num);
+        cur_irq |= (1<<(irq_num - 8));
         outb(cur_irq, SLAVE_8259_PORT + 1);
     }
     // spin_lock_irqrestore(irq_status_lock[irq_num], irq_flag);

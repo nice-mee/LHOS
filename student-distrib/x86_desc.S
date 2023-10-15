@@ -40,7 +40,7 @@ _tss:
 tss_bottom:
 
     .align  16
-gdt:
+gdt:   # an empty GDT provided
 _gdt:
 
     # First GDT entry cannot be used
@@ -111,3 +111,9 @@ _idt:
     .endr
 
 idt_bottom:
+
+
+# initialize GDTR
+gdt_desc:
+    .word gdt_bottom - gdt + 1      # size (0 - 15)
+    .long gdt                       # offset (16 - 47)

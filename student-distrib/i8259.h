@@ -27,6 +27,9 @@
  * to declare the interrupt finished */
 #define EOI                 0x60
 
+#define IRQ_NUM     16
+spinlock_t irq_status_lock[IRQ_NUM];
+
 /* Externally-visible functions */
 
 /* Initialize both PICs */

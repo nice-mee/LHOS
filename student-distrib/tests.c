@@ -49,8 +49,9 @@ int div_by_zero() {
 	TEST_HEADER;
 
 	int a = 0;
-	int b = 1 / a;
-	// This should raise an exception
+	int b = 1 / a; // This should raise an exception
+	(void)b;
+	return FAIL; // Shall not get here
 }
 
 // add more tests here

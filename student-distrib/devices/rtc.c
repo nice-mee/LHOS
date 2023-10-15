@@ -1,10 +1,11 @@
 #include "rtc.h"
 #include "../lib.h"
-//#include "../i8259.h"
+#include "../i8259.h"
 
 uint32_t rtc_time_counter;
 
 void RTC_init(void) {
+    printf("RTC_init\n");
     char prev;
     outb(RTC_B, RTC_PORT);     // select register B, and disable NMI
     prev = inb(RTC_CMOS_PORT); // read the current value of register B
@@ -23,6 +24,7 @@ void RTC_init(void) {
 }
 
 void __intr_RTC_handler(void) {
+    cli();
     rtc_time_counter ++;
 
     /* for cp1 */
@@ -32,4 +34,5 @@ void __intr_RTC_handler(void) {
     inb(RTC_CMOS_PORT);		    // just throw away contents
 
     send_eoi(RTC_IRQ);
+    sti();
 }

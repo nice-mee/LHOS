@@ -112,8 +112,3 @@ _idt:
 
 idt_bottom:
 
-
-# initialize GDTR
-gdt_desc:
-    .word gdt_bottom - gdt + 1      # size (0 - 15)
-    .long gdt                       # offset (16 - 47)

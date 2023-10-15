@@ -10,8 +10,8 @@ name: ;\
 
 ret_from_expection_handler:
 ret_from_interrupt_handler:
-    addl $4, %esp
     popal
+    addl $4, %esp
     iret
 
 /* Syscall Handling. */
@@ -30,12 +30,12 @@ common_interrupt_handler:
     cld
     movl 32(%esp), %edi
     cmpl $0, %edi
-    jb handle_interrupt
+    jl handle_interrupt
     call temp_syscall_handler
     jmp ret_from_interrupt_handler
 handle_interrupt:
     notl %edi
-    jmp *interrupts(,%edi,4)
+    call *interrupts(,%edi,4)
     jmp ret_from_interrupt_handler
 
 .globl intr_RTC_handler
@@ -50,14 +50,14 @@ intr_keyboard_handler:
 
 interrupts:
     .long 0 # Padding
-    .long __intr_RTC_handler
-    .long 0 # Padding
-    .long 0 # Padding
-    .long 0 # Padding
-    .long 0 # Padding
-    .long 0 # Padding
-    .long 0 # Padding
     .long __intr_keyboard_handler
+    .long 0 # Padding
+    .long 0 # Padding
+    .long 0 # Padding
+    .long 0 # Padding
+    .long 0 # Padding
+    .long 0 # Padding
+    .long __intr_RTC_handler
 
 /* Exception Handling. */
 

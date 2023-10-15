@@ -22,3 +22,5 @@
 void RTC_init(void);
 /* deal with rtc interrupts*/
 void __intr_RTC_handler(void);
+
+#endif /* _RTC_H_ */

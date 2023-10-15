@@ -49,8 +49,16 @@ int div_by_zero() {
 	TEST_HEADER;
 
 	int a = 0;
-	int b = 1 / a;
-	// This should raise an exception
+	int b = 1 / a; // This should raise an exception
+	(void)b;
+	return FAIL; // Shall not get here
+}
+
+int interrupt_test() {
+	TEST_HEADER;
+
+	asm volatile("int $0x21"); // This should raise a keyboard interrupt
+	return PASS;
 }
 
 // add more tests here
@@ -64,6 +72,7 @@ int div_by_zero() {
 /* Test suite entry point */
 void launch_tests(){
 	TEST_OUTPUT("idt_test", idt_test());
-	TEST_OUTPUT("div_by_zero", div_by_zero());
+	// TEST_OUTPUT("div_by_zero", div_by_zero());
+	// TEST_OUTPUT("interrupt_test", interrupt_test());
 	// launch your tests here
 }

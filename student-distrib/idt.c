@@ -4,6 +4,10 @@
 
 #include "idt.h"
 
+void temp_syscall_handler() {
+    printf("Syscall invoked\n");
+}
+
 void inline exception_init() {
     int i;
     for (i = 0; i < NUM_EXC; i++){

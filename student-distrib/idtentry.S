@@ -1,7 +1,7 @@
 #define ASM     1
 
 #define GENERATE_EXC_ASM_WRAPPER(name) ;\
-.GLOBL name ;\
+.globl name ;\
 name: ;\
     pushl $__##name ;\
     jmp common_exception_handler
@@ -15,10 +15,11 @@ ret_from_interrupt_handler:
     iret
 
 /* Syscall Handling. */
-syscall:
-    pushl $0
-    pushal
-    jmp ret_from_interrupt_handler
+.globl syscall_handler
+syscall_handler:
+    cmpl $0, %eax
+    pushl %eax
+    jmp common_interrupt_handler
 
 
 
@@ -27,16 +28,36 @@ syscall:
 common_interrupt_handler:
     pushal
     cld
-
+    movl 32(%esp), %edi
+    cmpl $0, %edi
+    jb handle_interrupt
+    call temp_syscall_handler
+    jmp ret_from_interrupt_handler
+handle_interrupt:
+    notl %edi
+    jmp *interrupts(,%edi,4)
     jmp ret_from_interrupt_handler
 
+.globl intr_RTC_handler
 intr_RTC_handler:
-    pushl $0
+    pushl $~0x08
     jmp common_interrupt_handler
 
+.globl intr_keyboard_handler
 intr_keyboard_handler:
-    pushl $0
+    pushl $~0x01
     jmp common_interrupt_handler
+
+interrupts:
+    .long 0 # Padding
+    .long __intr_RTC_handler
+    .long 0 # Padding
+    .long 0 # Padding
+    .long 0 # Padding
+    .long 0 # Padding
+    .long 0 # Padding
+    .long 0 # Padding
+    .long __intr_keyboard_handler
 
 /* Exception Handling. */
 

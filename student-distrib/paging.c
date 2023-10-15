@@ -6,21 +6,23 @@
 #include "lib.h"
 
 void paging_init(){
+    
+    memset(page_table, 0, sizeof(PTE_t) * DIR_TBL_SIZE);
+    memset(page_directory, 0, sizeof(PDE_t) * DIR_TBL_SIZE);
+
     // Initialize the page table.
-    int i;
-    for(i = 0; i < 1; i++){ // ??? 循环几次
-        page_table[i].P    = 1;
-        page_table[i].RW   = 1;
-        page_table[i].US   = 0;
-        page_table[i].PWT  = 0;
-        page_table[i].PCD  = 0;
-        page_table[i].A    = 0;
-        page_table[i].D    = 0;
-        page_table[i].PAT  = 0;
-        page_table[i].G    = 1; // ???
-        page_table[i].AVL  = 0;
-        page_table[i].ADDR = (VID_MEM_ADDR >> 12) + i;
-    }
+    int pos = (VID_MEM_ADDR >> 12);
+    page_table[pos].P    = 1;
+    page_table[pos].RW   = 1;
+    page_table[pos].US   = 0;
+    page_table[pos].PWT  = 0;
+    page_table[pos].PCD  = 0;
+    page_table[pos].A    = 0;
+    page_table[pos].D    = 0;
+    page_table[pos].PAT  = 0;
+    page_table[pos].G    = 1; // ???
+    page_table[pos].AVL  = 0;
+    page_table[pos].ADDR = pos;
 
     // Initialize the page directory for kernel.
     page_directory[1].P    = 1;
@@ -39,7 +41,7 @@ void paging_init(){
     page_directory[0].P    = 1;
     page_directory[0].RW   = 1;
     page_directory[0].US   = 0;
-    page_directory[0].PWT  = 1; // ???
+    page_directory[0].PWT  = 0; // ???
     page_directory[0].PCD  = 0;
     page_directory[0].A    = 0;
     page_directory[0].D    = 0;
@@ -47,7 +49,6 @@ void paging_init(){
     page_directory[0].G    = 0;
     page_directory[0].AVL  = 0;
     page_directory[0].ADDR = (uint32_t)page_table >> 12;
-
 
     asm volatile(
         "movl %0, %%eax;"

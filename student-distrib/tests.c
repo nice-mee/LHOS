@@ -102,7 +102,7 @@ int deref_video_mem_upperbound() {
 	TEST_HEADER;
 
 	uint8_t test;
-	uint8_t* ptr = (uint8_t*) 0xB9000;	// upperbound of the video mem+1
+	uint8_t* ptr = (uint8_t*) 0xB9000;	// upperbound of the video mem
 	test = *(ptr);
 	return FAIL;		// shouldn't reach here
 }
@@ -150,7 +150,7 @@ int deref_ker_mem_lowerbound() {
 	TEST_HEADER;
 
 	uint8_t test;
-	uint8_t* ptr = (uint8_t*) 0x3FFFFF;	// lowerbound of the video mem
+	uint8_t* ptr = (uint8_t*) 0x3FFFFF;	// lowerbound of the kernel mem
 	test = *(ptr);
 	return FAIL;		// shouldn't reach here
 }
@@ -219,10 +219,10 @@ void launch_tests(){
 	// TEST_OUTPUT("deref_null", deref_null());
 	// TEST_OUTPUT("deref_page_nonexist", deref_page_nonexist());
 	TEST_OUTPUT("deref_video_mem_upperbound", deref_video_mem_upperbound());
-	TEST_OUTPUT("deref_video_mem_lowerbound", deref_video_mem_lowerbound());
-	TEST_OUTPUT("deref_ker_mem_upperbound", deref_ker_mem_upperbound());
-	TEST_OUTPUT("deref_ker_mem_lowerbound", deref_ker_mem_lowerbound())
-	TEST_OUTPUT("deref_video_mem", deref_video_mem());
+	// TEST_OUTPUT("deref_video_mem_lowerbound", deref_video_mem_lowerbound());
+	// TEST_OUTPUT("deref_ker_mem_upperbound", deref_ker_mem_upperbound());
+	// TEST_OUTPUT("deref_ker_mem_lowerbound", deref_ker_mem_lowerbound())
+	// TEST_OUTPUT("deref_video_mem", deref_video_mem());
 	TEST_OUTPUT("deref_ker_mem", deref_ker_mem());
 	// launch your tests here
 }

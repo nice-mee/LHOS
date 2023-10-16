@@ -7,6 +7,7 @@
 #include "lib.h"
 #include "i8259.h"
 #include "idt.h"
+#include "paging.h"
 #include "debug.h"
 #include "tests.h"
 #include "devices/rtc.h"
@@ -147,6 +148,9 @@ void entry(unsigned long magic, unsigned long addr) {
     idt_init();
     RTC_init();
     keyboard_init();
+
+    /* Initialize paging */
+    paging_init();
 
     /* Enable interrupts */
     /* Do not enable the following until after you have set up your

@@ -15,7 +15,7 @@
 #define RTC_C           0x8C
 
 /* base frequency for rtc*/
-#define RTC_BASE_FRE    6
+#define RTC_BASE_FRE    15
 
 
 /* Initialize the rtc */

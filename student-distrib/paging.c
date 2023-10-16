@@ -11,45 +11,51 @@ void paging_init(){
     memset(page_directory, 0, sizeof(PDE_t) * DIR_TBL_SIZE);
 
     // Initialize the page table.
-    int pos = (VID_MEM_ADDR >> 12);
-    page_table[pos].P    = 1;
-    page_table[pos].RW   = 1;
-    page_table[pos].US   = 0;
-    page_table[pos].PWT  = 0;
-    page_table[pos].PCD  = 0;
-    page_table[pos].A    = 0;
-    page_table[pos].D    = 0;
-    page_table[pos].PAT  = 0;
-    page_table[pos].G    = 1; // ???
-    page_table[pos].AVL  = 0;
-    page_table[pos].ADDR = pos;
+    int i;
+    for (i = 0; i < PAGE_TBL_SIZE; i++) {
+        page_table[i].P    = 0;
+        page_table[i].RW   = 1;
+        page_table[i].US   = 0;
+        page_table[i].PWT  = 0;
+        page_table[i].PCD  = 0;
+        page_table[i].A    = 0;
+        page_table[i].D    = 0;
+        page_table[i].PAT  = 0;
+        page_table[i].G    = 0;
+        page_table[i].AVL  = 0;
+        page_table[i].ADDR = 0;
+    }
 
-    // Initialize the page directory for kernel.
+    // Set the video memory page.
+    int vid_mem_pos = (VID_MEM_ADDR >> 12);
+    page_table[vid_mem_pos].P    = 1;
+    page_table[vid_mem_pos].ADDR = vid_mem_pos;
+
+    // Initialize page directories
+    for (i = 0; i < DIR_TBL_SIZE; i++) {
+        page_directory[i].P    = 0;
+        page_directory[i].RW   = 1;
+        page_directory[i].US   = 0;
+        page_directory[i].PWT  = 0;
+        page_directory[i].PCD  = 0;
+        page_directory[i].A    = 0;
+        page_directory[i].D    = 0;
+        page_directory[i].PS   = 0;
+        page_directory[i].G    = 0;
+        page_directory[i].AVL  = 0;
+        page_directory[i].ADDR = 0;
+    }
+
+    // Initialize the 4MB page directory for kernel.
     page_directory[1].P    = 1;
-    page_directory[1].RW   = 1;
-    page_directory[1].US   = 0;
-    page_directory[1].PWT  = 0;
-    page_directory[1].PCD  = 1; // ???
-    page_directory[1].A    = 0;
-    page_directory[1].D    = 0;
-    page_directory[1].PS   = 1;
-    page_directory[1].G    = 1;
-    page_directory[1].AVL  = 0;
+    page_directory[1].PS   = 1; // 4MB page
     page_directory[1].ADDR = KERNEL_ADDR >> 12;
 
-    // Initialize the page directory for page table.
+    // Initialize the page directory for 4kB page tables.
     page_directory[0].P    = 1;
-    page_directory[0].RW   = 1;
-    page_directory[0].US   = 0;
-    page_directory[0].PWT  = 0; // ???
-    page_directory[0].PCD  = 0;
-    page_directory[0].A    = 0;
-    page_directory[0].D    = 0;
-    page_directory[0].PS   = 0;
-    page_directory[0].G    = 0;
-    page_directory[0].AVL  = 0;
     page_directory[0].ADDR = (uint32_t)page_table >> 12;
 
+    // Code for manipulating control registers to enable paging.
     asm volatile(
         "movl %0, %%eax;"
         "movl %%eax, %%cr3;"

@@ -10,6 +10,7 @@
 
 #define PAGE_SIZE 4096
 #define DIR_TBL_SIZE 1024
+#define PAGE_TBL_SIZE 1024
 #define VID_MEM_ADDR 0xB8000
 #define KERNEL_ADDR 0x400000
 

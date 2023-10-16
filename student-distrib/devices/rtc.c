@@ -5,6 +5,7 @@
 uint32_t rtc_time_counter;
 
 void RTC_init(void) {
+    cli();
     printf("RTC_init\n");
     char prev;
     outb(RTC_B, RTC_PORT);     // select register B, and disable NMI
@@ -16,11 +17,11 @@ void RTC_init(void) {
     outb(RTC_A, RTC_PORT);     // set index to register A, disable NMI
     prev = inb(RTC_CMOS_PORT); // get the previous value of register B
     outb(RTC_A, RTC_PORT);     // set the index again
-    outb((prev & 0xF0) | RTC_BASE_FRE, RTC_CMOS_PORT);  // set the frequency to 1024
+    outb((prev & 0xF0) | RTC_BASE_FRE, RTC_CMOS_PORT);  // set the frequency to 2 Hz
 
     rtc_time_counter = 0;
+    sti();
     enable_irq(RTC_IRQ);
-
 }
 
 void __intr_RTC_handler(void) {

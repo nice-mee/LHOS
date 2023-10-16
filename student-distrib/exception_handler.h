@@ -6,6 +6,7 @@
 #define GENERATE_EXCEPTION_HANDLER(idtvec, str, name) \
 extern void __##name() \
 { \
+    clear(); \
     printf("Exception 0x%x: " str "\n" , idtvec); \
     while(1); \
 }

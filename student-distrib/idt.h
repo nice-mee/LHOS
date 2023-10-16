@@ -11,5 +11,6 @@
 #define RTC_VEC 0x28
 
 extern void idt_init();
+extern void temp_syscall_handler();
 
 #endif /* _IDT_H */

@@ -1,0 +1,19 @@
+# Compiled object files
+*.o
+
+# Executables
+*.out
+
+# Libraries
+*.a
+*.so
+
+# Debugging files
+*.dSYM/
+*.swp
+*.swo
+
+# IDE files
+.vscode/
+.idea/
+*.code-workspace

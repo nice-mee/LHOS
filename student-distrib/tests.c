@@ -45,12 +45,34 @@ int idt_test(){
 	return result;
 }
 
+/* div_by_zero
+ *
+ * Try to trigger divided by zero exception.
+ * Inputs: none
+ * Outputs: none
+ * Side Effects: fault should freeze the kernel
+ */
 int div_by_zero() {
 	TEST_HEADER;
 
 	int a = 0;
-	int b = 1 / a;
-	// This should raise an exception
+	int b = 1 / a; // This should raise an exception
+	(void)b;
+	return FAIL; // Shall not get here
+}
+
+/* invalid_opcode
+ *
+ * Try to trigger invalid opcode exception.
+ * Inputs: none
+ * Outputs: none
+ * Side Effects: fault should freeze the kernel
+ */
+int invalid_opcode() {
+	TEST_HEADER;
+
+	asm volatile("ud2"); // This should generate an invalid opcode
+	return FAIL; // Shall not get here
 }
 
 /* deref_null
@@ -60,7 +82,7 @@ int div_by_zero() {
  * Outputs: none
  * Side Effects: fault should freeze the kernel
  */
-void deref_null() {
+int deref_null() {
 	TEST_HEADER;
 
 	uint8_t test;
@@ -76,7 +98,7 @@ void deref_null() {
  * Outputs: none
  * Side Effects: fault should freeze the kernel
  */
-void deref_page_nonexist() {
+int deref_page_nonexist() {
 	TEST_HEADER;
 
 	uint8_t test;
@@ -97,9 +119,9 @@ int deref_video_mem() {
 	TEST_HEADER;
 
 	/* starting and ending addressed for the video memory*/
-	uint8_t* start = (unsigned char*) 0xB8000;
-	uint8_t* end   = (unsigned char*) 0xB9000;
-	uint8_t i;
+	uint8_t* start = (uint8_t*) 0xB8000;
+	uint8_t* end   = (uint8_t*) 0xB9000;
+	uint8_t* i;
 	uint8_t test;
 	
 	/* derefencing every video mem address */
@@ -121,9 +143,9 @@ int deref_ker_mem() {
 	TEST_HEADER;
 
 	/* starting and ending addressed for the kernel memory*/
-	uint8_t* start = (unsigned char*) 0x400000;
-	uint8_t* end   = (unsigned char*) 0x800000;
-	uint8_t i;
+	uint8_t* start = (uint8_t*) 0x400000;
+	uint8_t* end   = (uint8_t*) 0x800000;
+	uint8_t* i;
 	uint8_t test;
 	
 	/* derefencing every kernel mem address */
@@ -145,6 +167,11 @@ int deref_ker_mem() {
 /* Test suite entry point */
 void launch_tests(){
 	TEST_OUTPUT("idt_test", idt_test());
-	TEST_OUTPUT("div_by_zero", div_by_zero());
+	// TEST_OUTPUT("div_by_zero", div_by_zero());
+	TEST_OUTPUT("invalid_opcode", invalid_opcode());
+	// TEST_OUTPUT("deref_null", deref_null());
+	// TEST_OUTPUT("deref_page_nonexist", deref_page_nonexist());
+	TEST_OUTPUT("deref_video_mem", deref_video_mem());
+	TEST_OUTPUT("deref_ker_mem", deref_ker_mem());
 	// launch your tests here
 }

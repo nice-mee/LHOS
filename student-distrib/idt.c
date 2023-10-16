@@ -3,6 +3,11 @@
  */
 
 #include "idt.h"
+#include "lib.h"
+
+void temp_syscall_handler() {
+    printf("Syscall invoked\n");
+}
 
 void inline exception_init() {
     int i;

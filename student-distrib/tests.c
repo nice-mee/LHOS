@@ -53,6 +53,87 @@ int div_by_zero() {
 	// This should raise an exception
 }
 
+/* deref_null
+ *
+ * Try to dereference NULL.
+ * Inputs: none
+ * Outputs: none
+ * Side Effects: fault should freeze the kernel
+ */
+void deref_null() {
+	TEST_HEADER;
+
+	uint8_t test;
+	uint8_t* ptr = NULL;
+	test = *(ptr);		// dereference NULL
+	return FAIL;		// shouldn't reach here
+}
+
+/* deref_page_nonexist
+ *
+ * Try to dereference an address in a nonexistent page.
+ * Inputs: none
+ * Outputs: none
+ * Side Effects: fault should freeze the kernel
+ */
+void deref_page_nonexist() {
+	TEST_HEADER;
+
+	uint8_t test;
+	uint8_t* ptr = (uint8_t*) 0x800000;	// for cp1, the largest address is 0x800000 - 1
+	test = *(ptr);
+	return FAIL;		// shouldn't reach here
+}
+
+
+/* deref_video_mem
+ *
+ * Try to dereference every linear address in the range of video memory
+ * Inputs: None
+ * Outputs: PASS or FAIL
+ * Side Effects: None
+ */
+int deref_video_mem() {
+	TEST_HEADER;
+
+	/* starting and ending addressed for the video memory*/
+	uint8_t* start = (unsigned char*) 0xB8000;
+	uint8_t* end   = (unsigned char*) 0xB9000;
+	uint8_t i;
+	uint8_t test;
+	
+	/* derefencing every video mem address */
+	for (i = start; i < end; ++i) {
+		test = (*i);
+	}
+
+	return PASS;		// should reach here
+}
+
+/* deref_ker_mem
+ *
+ * Try to dereference every linear address in the range of kernel memory
+ * Inputs: None
+ * Outputs: PASS or FAIL
+ * Side Effects: None
+ */
+int deref_ker_mem() {
+	TEST_HEADER;
+
+	/* starting and ending addressed for the kernel memory*/
+	uint8_t* start = (unsigned char*) 0x400000;
+	uint8_t* end   = (unsigned char*) 0x800000;
+	uint8_t i;
+	uint8_t test;
+	
+	/* derefencing every kernel mem address */
+	for (i = start; i < end; ++i) {
+		test = (*i);
+	}
+
+	return PASS;		// should reach here
+}
+
 // add more tests here
 
 /* Checkpoint 2 tests */

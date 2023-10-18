@@ -37,7 +37,7 @@ typedef struct {
     // char screen[80][25];
     char* video_mem;
     keyboard_state_t kbd;
-    char* input_buf[INPUT_BUF_SIZE];
+    char input_buf[INPUT_BUF_SIZE];
     int input_buf_ptr;
 } vt_state_t;
 

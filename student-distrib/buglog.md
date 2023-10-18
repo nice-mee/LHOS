@@ -21,6 +21,8 @@
 > 	Initially, it was presumed to be due to a high base frequency, leading us to test with a significantly reduced frequency. Nonetheless, the alternation frequency on the screen did not diminish, indicating no change. This led to the realization that there was a complication within the RTC's initialization. Our conclusive analysis was that not disabling interrupts during the initialization phase resulted in the frequency being incorrectly established. 
 > **Solution** 
 > 	We employed `STL()` and `CLI()` at the beginning and conclusion of the `RTC_init()` procedure, successfully normalizing the frequency.
+> **PS**
+>   This bug seems to be related to other issues. In theory `RTC_init()` should be already called with interrupt disabled. In the current version of code we removed `cli()` and `sti()` and it works fine. We are not sure why this happens. But anyway it's fixed somehow.
 
 > [!Bug 4] 
 > **Description** 

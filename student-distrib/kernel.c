@@ -12,6 +12,7 @@
 #include "tests.h"
 #include "devices/rtc.h"
 #include "devices/keyboard.h"
+#include "devices/vt.h"
 
 #define RUN_TESTS
 
@@ -27,6 +28,9 @@ void entry(unsigned long magic, unsigned long addr) {
 
     /* Clear the screen. */
     clear();
+    
+    /* Virtual terminal initialization should be done before printing anything. */
+    vt_init();
 
     /* Am I booted by a Multiboot-compliant boot loader? */
     if (magic != MULTIBOOT_BOOTLOADER_MAGIC) {

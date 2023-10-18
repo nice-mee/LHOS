@@ -52,6 +52,7 @@ static int cur_vt = 0;
  *   SIDE EFFECTS: none
  */
 void vt_init(void) {
+    cli();
     vt_state[cur_vt].screen_x = 0;
     vt_state[cur_vt].screen_y = 0;
     vt_state[cur_vt].video_mem = (char*)VIDEO;
@@ -60,6 +61,7 @@ void vt_init(void) {
     vt_state[cur_vt].kbd.ctrl = 0;
     vt_state[cur_vt].kbd.alt = 0;
     vt_state[cur_vt].input_buf_ptr = 0;
+    sti();
 }
 
 /* vt_open
@@ -237,22 +239,22 @@ void vt_keyboard(uint8_t keycode, int release) {
  *   SIDE EFFECTS: none
  */
 void vt_putc(uint8_t c) {
-    if(c == '\n' || c == '\r') {
+    unsigned long flags;
+    cli_and_save(flags);
+    if (c == '\n' || c == '\r') {
         print_newline();
         redraw_cursor();
-        return;
-    }
-    if (c == '\b') {
+    } else if (c == '\b') {
         print_backspace();
         redraw_cursor();
-        return;
+    } else {
+        char * video_mem = vt_state[cur_vt].video_mem;
+        *(uint8_t *)(video_mem + ((NUM_COLS * vt_state[cur_vt].screen_y + vt_state[cur_vt].screen_x) << 1)) = c;
+        *(uint8_t *)(video_mem + ((NUM_COLS * vt_state[cur_vt].screen_y + vt_state[cur_vt].screen_x) << 1) + 1) = ATTRIB;
+        vt_state[cur_vt].screen_x++;
+        if (vt_state[cur_vt].screen_x >= NUM_COLS)
+            print_newline();
+        redraw_cursor();
     }
-    char * video_mem = vt_state[cur_vt].video_mem;
-    *(uint8_t *)(video_mem + ((NUM_COLS * vt_state[cur_vt].screen_y + vt_state[cur_vt].screen_x) << 1)) = c;
-    *(uint8_t *)(video_mem + ((NUM_COLS * vt_state[cur_vt].screen_y + vt_state[cur_vt].screen_x) << 1) + 1) = ATTRIB;
-    vt_state[cur_vt].screen_x++;
-    if (vt_state[cur_vt].screen_x >= NUM_COLS)
-        print_newline();
-    redraw_cursor();
+    restore_flags(flags);
 }
-

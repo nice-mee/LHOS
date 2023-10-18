@@ -3,8 +3,6 @@
 #include "../lib.h"
 #include "../i8259.h"
 
-static keyboard_state_t keyboard_state;
-
 static const uint8_t ps2_set1_keycode[128] = {
     KEY_RESERVED, KEY_ESC, KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6,
     KEY_7, KEY_8, KEY_9, KEY_0, KEY_MINUS, KEY_EQUAL, KEY_BACKSPACE,
@@ -37,10 +35,5 @@ DEFINE_DEVICE_HANDLER(keyboard) {
 }
 
 DEFINE_DEVICE_INIT(keyboard) {
-    printf("Keyboard_init\n");
-    keyboard_state.shift = 0;
-    keyboard_state.caps = 0;
-    keyboard_state.ctrl = 0;
-    keyboard_state.alt = 0;
     enable_irq(KEYBOARD_IRQ);
 }

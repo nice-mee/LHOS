@@ -54,7 +54,7 @@ static int cur_vt = 0;
  *   SIDE EFFECTS: none
  */
 void vt_init(void) {
-    cli();
+    // cli();
     vt_state[cur_vt].screen_x = 0;
     vt_state[cur_vt].screen_y = 0;
     vt_state[cur_vt].video_mem = (char*)VIDEO;
@@ -64,7 +64,7 @@ void vt_init(void) {
     vt_state[cur_vt].kbd.alt = 0;
     vt_state[cur_vt].input_buf_ptr = 0;
     vt_state[cur_vt].enter_pressed = 0;
-    sti();
+    // sti();
 }
 
 /* vt_open
@@ -75,7 +75,7 @@ void vt_init(void) {
  *   SIDE EFFECTS: none
  */
 void vt_open(void) {
-
+    // Do nothing
 }
 
 /* vt_close
@@ -86,29 +86,27 @@ void vt_open(void) {
  *   SIDE EFFECTS: none
  */
 void vt_close(void) {
-    
+    // Do nothing
 }
 
 /* vt_read
  *   DESCRIPTION: Read from virtual terminal.
- *   INPUTS: buf -- buffer to read into
+ *   INPUTS: fd -- file descriptor
+ *           buf -- buffer to read into
  *           nbytes -- number of bytes to read
  *   OUTPUTS: none
  *   RETURN VALUE: number of bytes read
  *   SIDE EFFECTS: none
  */
-int32_t vt_read(void* buf, int32_t nbytes) {
-    // Reset input buffer pointer and clear input buffer
-    // cli();
-    // vt_state[cur_vt].input_buf_ptr = 0;
-    // memset(vt_state[cur_vt].user_buf, '\0', INPUT_BUF_SIZE * sizeof(char));
-    // sti();
+int32_t vt_read(int32_t fd, void* buf, int32_t nbytes) {
+    if (buf == NULL || nbytes < 0)
+        return -1;
 
     // Wait for enter key
     while (!vt_state[cur_vt].enter_pressed);
     vt_state[cur_vt].enter_pressed = 0;
 
-    // Copy input buffer to user buffer
+    // Copy user buffer to buf
     int i;
     for (i = 0; i < nbytes && i < INPUT_BUF_SIZE; i++) {
         ((char*)buf)[i] = vt_state[cur_vt].user_buf[i];
@@ -119,15 +117,21 @@ int32_t vt_read(void* buf, int32_t nbytes) {
 
 /* vt_write
  *   DESCRIPTION: Write to virtual terminal.
- *   INPUTS: buf -- buffer to write from
+ *   INPUTS: fd -- file descriptor
+ *           buf -- buffer to write from
  *           nbytes -- number of bytes to write
  *   OUTPUTS: none
  *   RETURN VALUE: number of bytes written
  *   SIDE EFFECTS: none
  */
-int32_t vt_write(const void* buf, int32_t nbytes) {
-
-    return 0;
+int32_t vt_write(int32_t fd, const void* buf, int32_t nbytes) {
+    if (buf == NULL || nbytes < 0)
+        return -1;
+    int i;
+    for (i = 0; i < nbytes; i++) {
+        vt_putc(((char*)buf)[i]);
+    }
+    return i;
 }
 
 static void scroll_page(void) {
@@ -175,7 +179,7 @@ static void redraw_cursor(void) {
 	outb((uint8_t) ((pos >> 8) & 0xFF), 0x3D5);
 }
 
-static void process_char(uint8_t keycode, int release) {
+static void process_char(keycode_t keycode, int release) {
     // Ignore key releases
     if (release)
         return;
@@ -202,8 +206,7 @@ static void process_char(uint8_t keycode, int release) {
         // A-Z should be affected by caps lock as well
         c = keycode_to_printable_char[vt_state[cur_vt].kbd.shift ^ vt_state[cur_vt].kbd.caps][keycode];
         vt_putc(c);
-    }
-    else {
+    } else {
         // Other keys should not be affected by caps lock
         c = keycode_to_printable_char[vt_state[cur_vt].kbd.shift][keycode];
         vt_putc(c);
@@ -220,7 +223,7 @@ static void process_char(uint8_t keycode, int release) {
  *   RETURN VALUE: none
  *   SIDE EFFECTS: none
  */
-void vt_keyboard(uint8_t keycode, int release) {
+void vt_keyboard(keycode_t keycode, int release) {
     switch (keycode) {
         case KEY_LEFTSHIFT:
         case KEY_RIGHTSHIFT:
@@ -260,12 +263,15 @@ void vt_keyboard(uint8_t keycode, int release) {
  *   DESCRIPTION: Put a character on the screen.
                   Can handle newline and carriage return.
                   Can handle backspace.
+                  Rejects null character.
  *   INPUTS: c -- character to put on the screen
  *   OUTPUTS: none
  *   RETURN VALUE: none
  *   SIDE EFFECTS: none
  */
-void vt_putc(uint8_t c) {
+void vt_putc(char c) {
+    if (c == '\0')
+        return;
     unsigned long flags;
     cli_and_save(flags);
     if (c == '\n' || c == '\r') {

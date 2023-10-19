@@ -215,7 +215,7 @@ int terminal_read_test() {
 	int i;
 	for (i = 0; i < 4; i++) {
 		printf("Please enter something:");
-		int32_t ret = vt_read(buf, 128);
+		int32_t ret = vt_read(0, buf, 128);
 		printf("Content of input:%s", buf);
 		printf("Return value: %d\n", ret);
 	}

@@ -37,8 +37,10 @@ typedef struct {
     // char screen[80][25];
     char* video_mem;
     keyboard_state_t kbd;
-    char input_buf[INPUT_BUF_SIZE];
+    char input_buf[INPUT_BUF_SIZE]; // Temporary buffer for storing user input
     int input_buf_ptr;
+    volatile int enter_pressed;
+    char user_buf[INPUT_BUF_SIZE]; // Buffer for storing user input after enter is pressed
 } vt_state_t;
 
 static vt_state_t vt_state[1];
@@ -61,6 +63,7 @@ void vt_init(void) {
     vt_state[cur_vt].kbd.ctrl = 0;
     vt_state[cur_vt].kbd.alt = 0;
     vt_state[cur_vt].input_buf_ptr = 0;
+    vt_state[cur_vt].enter_pressed = 0;
     sti();
 }
 
@@ -95,8 +98,23 @@ void vt_close(void) {
  *   SIDE EFFECTS: none
  */
 int32_t vt_read(void* buf, int32_t nbytes) {
+    // Reset input buffer pointer and clear input buffer
+    // cli();
+    // vt_state[cur_vt].input_buf_ptr = 0;
+    // memset(vt_state[cur_vt].user_buf, '\0', INPUT_BUF_SIZE * sizeof(char));
+    // sti();
 
-    return 0;
+    // Wait for enter key
+    while (!vt_state[cur_vt].enter_pressed);
+    vt_state[cur_vt].enter_pressed = 0;
+
+    // Copy input buffer to user buffer
+    int i;
+    for (i = 0; i < nbytes && i < INPUT_BUF_SIZE; i++) {
+        ((char*)buf)[i] = vt_state[cur_vt].user_buf[i];
+    }
+
+    return i;
 }
 
 /* vt_write
@@ -139,8 +157,10 @@ static void print_backspace(void) {
     if (vt_state[cur_vt].screen_x < 0) {
         vt_state[cur_vt].screen_x = NUM_COLS - 1;
         vt_state[cur_vt].screen_y--;
-        if (vt_state[cur_vt].screen_y < 0) // In theory this should never happen
+        if (vt_state[cur_vt].screen_y < 0) {
             vt_state[cur_vt].screen_y = 0;
+            vt_state[cur_vt].screen_x = 0;
+        }
     }
     *(uint8_t *)(video_mem + ((NUM_COLS * vt_state[cur_vt].screen_y + vt_state[cur_vt].screen_x) << 1)) = ' ';
     *(uint8_t *)(video_mem + ((NUM_COLS * vt_state[cur_vt].screen_y + vt_state[cur_vt].screen_x) << 1) + 1) = ATTRIB;
@@ -163,6 +183,8 @@ static void process_char(uint8_t keycode, int release) {
     // Handle special key combinations
     if (vt_state[cur_vt].kbd.ctrl && keycode == KEY_L) {
         clear();
+        vt_state[cur_vt].input_buf_ptr = 0;
+        memset(vt_state[cur_vt].input_buf, '\0', INPUT_BUF_SIZE * sizeof(char));
         vt_state[cur_vt].screen_x = 0;
         vt_state[cur_vt].screen_y = 0;
         redraw_cursor();
@@ -214,13 +236,18 @@ void vt_keyboard(uint8_t keycode, int release) {
         case KEY_ENTER:
             if (!release) {
                 vt_putc('\n');
-                vt_state[cur_vt].input_buf_ptr = 0;
+                vt_state[cur_vt].input_buf[vt_state[cur_vt].input_buf_ptr] = '\n';
+                memcpy(vt_state[cur_vt].user_buf, vt_state[cur_vt].input_buf, INPUT_BUF_SIZE * sizeof(char)); // Copy input buffer to user buffer
+                vt_state[cur_vt].input_buf_ptr = 0; // Reset input buffer pointer
+                memset(vt_state[cur_vt].input_buf, '\0', INPUT_BUF_SIZE * sizeof(char)); // Clear input buffer
+                vt_state[cur_vt].enter_pressed = 1; // Signal read() that enter is pressed
             }
             break;
         case KEY_BACKSPACE:
             if (!release && vt_state[cur_vt].input_buf_ptr > 0) {
                 vt_putc('\b');
                 vt_state[cur_vt].input_buf_ptr--;
+                vt_state[cur_vt].input_buf[vt_state[cur_vt].input_buf_ptr] = '\0';
             }
             break;
         default:
@@ -243,10 +270,8 @@ void vt_putc(uint8_t c) {
     cli_and_save(flags);
     if (c == '\n' || c == '\r') {
         print_newline();
-        redraw_cursor();
     } else if (c == '\b') {
         print_backspace();
-        redraw_cursor();
     } else {
         char * video_mem = vt_state[cur_vt].video_mem;
         *(uint8_t *)(video_mem + ((NUM_COLS * vt_state[cur_vt].screen_y + vt_state[cur_vt].screen_x) << 1)) = c;
@@ -254,7 +279,7 @@ void vt_putc(uint8_t c) {
         vt_state[cur_vt].screen_x++;
         if (vt_state[cur_vt].screen_x >= NUM_COLS)
             print_newline();
-        redraw_cursor();
     }
+    redraw_cursor();
     restore_flags(flags);
 }

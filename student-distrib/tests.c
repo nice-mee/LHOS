@@ -207,6 +207,21 @@ int deref_ker_mem() {
 // add more tests here
 
 /* Checkpoint 2 tests */
+
+int terminal_read_test() {
+	TEST_HEADER;
+
+	uint8_t buf[128];
+	int i;
+	for (i = 0; i < 4; i++) {
+		printf("Please enter something:");
+		int32_t ret = vt_read(buf, 128);
+		printf("Content of input:%s", buf);
+		printf("Return value: %d\n", ret);
+	}
+	return PASS;
+}
+
 /* Checkpoint 3 tests */
 /* Checkpoint 4 tests */
 /* Checkpoint 5 tests */
@@ -225,5 +240,6 @@ void launch_tests(){
 	// TEST_OUTPUT("deref_ker_mem_lowerbound", deref_ker_mem_lowerbound())
 	TEST_OUTPUT("deref_video_mem", deref_video_mem());
 	TEST_OUTPUT("deref_ker_mem", deref_ker_mem());
+	TEST_OUTPUT("terminal_read_test", terminal_read_test());
 	// launch your tests here
 }

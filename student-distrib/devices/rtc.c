@@ -57,14 +57,13 @@ void RTC_init(void) {
 void __intr_RTC_handler(void) {
     cli();
     rtc_time_counter ++;
-    int32_t pid; /* process counter */
-
+    int32_t pid;
+    /* update each process's counter */
     for (pid = 0; pid < MAX_PNUM; ++pid) {
         if(RTC_proc_list[pid].proc_exist) {
             RTC_proc_list[pid].proc_count --;
         }
     }
-
     outb(RTC_C &0x0F, RTC_PORT); // select register C
     inb(RTC_CMOS_PORT);		    // just throw away contents
 
@@ -85,6 +84,7 @@ void __intr_RTC_handler(void) {
 int32_t RTC_open(int32_t proc_id) {
     /* set process's freq and existence status */
     RTC_proc_list[proc_id].proc_freq = 2;
+    RTC_proc_list[proc_id].proc_count = RTC_BASE_FREQ / 2; 
     RTC_proc_list[proc_id].proc_exist = 1;
     return 0;
 }
@@ -146,5 +146,6 @@ int32_t RTC_write(const void* buf, int32_t nbytes, int32_t proc_id) {
     }
     /* adjusts the freq */
     RTC_proc_list[proc_id].proc_freq = freq;
+    RTC_proc_list[proc_id].proc_count = RTC_BASE_FREQ / freq;
     return 0;
 }

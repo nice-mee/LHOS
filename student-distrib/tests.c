@@ -34,7 +34,8 @@ int idt_test(){
 
 	int i;
 	int result = PASS;
-	for (i = 0; i < 10; ++i){
+	for (i = 0; i < 20; ++i){
+		if (i == 15) continue; // reserved by Intel
 		if ((idt[i].offset_15_00 == NULL) && 
 			(idt[i].offset_31_16 == NULL)){
 			assertion_failure();
@@ -215,14 +216,14 @@ int deref_ker_mem() {
 void launch_tests(){
 	TEST_OUTPUT("idt_test", idt_test());
 	// TEST_OUTPUT("div_by_zero", div_by_zero());
-	TEST_OUTPUT("invalid_opcode", invalid_opcode());
+	// TEST_OUTPUT("invalid_opcode", invalid_opcode());
 	// TEST_OUTPUT("deref_null", deref_null());
 	// TEST_OUTPUT("deref_page_nonexist", deref_page_nonexist());
-	TEST_OUTPUT("deref_video_mem_upperbound", deref_video_mem_upperbound());
+	// TEST_OUTPUT("deref_video_mem_upperbound", deref_video_mem_upperbound());
 	// TEST_OUTPUT("deref_video_mem_lowerbound", deref_video_mem_lowerbound());
 	// TEST_OUTPUT("deref_ker_mem_upperbound", deref_ker_mem_upperbound());
 	// TEST_OUTPUT("deref_ker_mem_lowerbound", deref_ker_mem_lowerbound())
-	// TEST_OUTPUT("deref_video_mem", deref_video_mem());
+	TEST_OUTPUT("deref_video_mem", deref_video_mem());
 	TEST_OUTPUT("deref_ker_mem", deref_ker_mem());
 	// launch your tests here
 }

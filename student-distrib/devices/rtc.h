@@ -15,12 +15,20 @@
 #define RTC_C           0x8C
 
 /* base frequency for rtc*/
-#define RTC_BASE_FRE    15
+#define RTC_BASE_FREQ    1024
+#define RTC_BASE_RATE    6
 
+/* maximum number of processes */
+#define MAX_PROC_NUM    8
 
 /* Initialize the rtc */
 void RTC_init(void);
 /* deal with rtc interrupts*/
 void __intr_RTC_handler(void);
+/* for checkpoint2 */
+int32_t RTC_open(int32_t proc_id);
+int32_t RTC_close(int32_t proc_id);
+int32_t RTC_read(void* buf, int32_t nbytes, int32_t proc_id);
+int32_t RTC_write(const void* buf, int32_t nbytes, int32_t proc_id);
 
 #endif /* _RTC_H_ */

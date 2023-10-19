@@ -4,6 +4,16 @@
 
 uint32_t rtc_time_counter;
 
+/* struct storing frequency and counter for process with
+different frequencies. Used to implement virtualization */
+typedef struct {
+    bool proc_exist;
+    int32_t proc_freq;
+    int32_t proc_count;
+} proc_freqcount_pair;
+
+static proc_freqcount_pair RTC_proc_list[MAX_PROC_NUM];
+
 /* RTC_init - Initialization of Real-Time Clock (RTC)
  * 
  * Initializes the RTC to a base frequency of 1024.
@@ -26,7 +36,7 @@ void RTC_init(void) {
     outb(RTC_A, RTC_PORT);     // set index to register A, disable NMI
     prev = inb(RTC_CMOS_PORT); // get the previous value of register B
     outb(RTC_A, RTC_PORT);     // set the index again
-    outb((prev & 0xF0) | RTC_BASE_FRE, RTC_CMOS_PORT);  // set the frequency to 2 Hz
+    outb((prev & 0xF0) | RTC_BASE_RATE, RTC_CMOS_PORT);  // set the frequency to 2 Hz
 
     rtc_time_counter = 0;
     sti();
@@ -46,13 +56,94 @@ void RTC_init(void) {
 void __intr_RTC_handler(void) {
     cli();
     rtc_time_counter ++;
+    int32_t pid; /* process counter */
 
-    /* for cp1 */
-    test_interrupts();
+    for (pid = 0; pid < MAX_PNUM; ++pid) {
+        if(RTC_proc_list[pid].proc_exist) {
+            RTC_proc_list[pid].proc_count --;
+        }
+    }
 
     outb(RTC_C &0x0F, RTC_PORT); // select register C
     inb(RTC_CMOS_PORT);		    // just throw away contents
 
     send_eoi(RTC_IRQ);
     sti();
+}
+
+/* 
+ * Function: RTC_open
+ * Description: Initializes the RTC interrupt handler for a specific process, 
+ * setting the RTC frequency to 2Hz and validating the process's ID.
+ * Parameters:
+ *    proc_id: id of the process
+ * Returns: 0 for success
+ * Side Effects: 1. sets the RTC frequency for the process to 2Hz
+ *               2. validates the process's id
+ */
+int32_t RTC_open(int32_t proc_id) {
+    /* set process's freq and existence status */
+    RTC_proc_list[proc_id].proc_freq = 2;
+    RTC_proc_list[proc_id].proc_exist = 1;
+    return 0;
+}
+
+/* 
+ * Function: RTC_close
+ * Description: invalidates the process's RTC by 
+ * marking its id as invalid.
+ * Parameters:
+ *    proc_id: id of the process
+ * Returns: 0 for success
+ * Side Effects: set the process's id invalid
+ */
+int32_t RTC_close(int32_t proc_id) {
+    /* invalidate the process's existence status */
+    RTC_proc_list[proc_id].proc_exist = 0;
+    return 0;
+}
+
+/* 
+ * Function: RTC_read
+ * Description: block until the next interrupt occurs for the process
+ * Parameters:
+ *    buf: ignored
+ *    nbytes: ignored
+ *    proc_id: id of the process
+ * Returns:
+ *    0 for success
+ * Side Effects: block until the next interrupt occurs for the process
+ */
+int32_t RTC_read(void* buf, int32_t nbytes, int32_t proc_id) {
+    /* virtualization: wait counter reaches zero */
+    while(RTC_proc_list[proc_id].proc_count);
+    /* reset counter */
+    RTC_proc_list[proc_id].proc_count = 1024 / RTC_proc_list[proc_id].proc_freq;
+    return 0;
+}
+
+/* 
+ * Function: RTC_write
+ * Description: adjusts the RTC frequency for a specific process
+ * Parameters:
+ *    buf: ptr to the value of the intended frequency
+ *    nbytes: ignored
+ *    proc_id: Identifier ID of the process
+ * Returns:
+ *    0 for success, -1 for invalid arguments
+ * Side Effects: adjusts the freq for the process
+ */
+int32_t RTC_write(const void* buf, int32_t nbytes, int32_t proc_id) {
+    uint32_t freq = *(uint32_t*) buf;
+    /* validate the existence of the process */
+    if(!RTC_proc_list[proc_id].proc_exist) {
+        return -1;
+    }
+    /* ensuring freq is a power of 2 and within acceptable limits */
+    if(!(freq && !(freq & (freq - 1))) || freq > 1024) {
+        return -1;
+    }
+    /* adjusts the freq */
+    RTC_proc_list[proc_id].proc_freq = freq;
+    return 0;
 }

@@ -108,7 +108,7 @@ int32_t vt_read(int32_t fd, void* buf, int32_t nbytes) {
 
     // Copy user buffer to buf
     int i;
-    for (i = 0; i < nbytes && i < INPUT_BUF_SIZE; i++) {
+    for (i = 0; i < nbytes && i < INPUT_BUF_SIZE && vt_state[cur_vt].user_buf[i] != '\0'; i++) {
         ((char*)buf)[i] = vt_state[cur_vt].user_buf[i];
     }
 
@@ -198,7 +198,7 @@ static void process_char(keycode_t keycode, int release) {
     /* Echo printable characters */
     if (keycode == KEY_RESERVED || keycode > KEY_SPACE) // KEY_SPACE is the last printable character in keycode table
         return;
-    if (vt_state[cur_vt].input_buf_ptr >= INPUT_BUF_SIZE)
+    if (vt_state[cur_vt].input_buf_ptr >= INPUT_BUF_SIZE - 1)
         return;
 
     char c;

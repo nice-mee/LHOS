@@ -1,6 +1,7 @@
 #include "tests.h"
 #include "x86_desc.h"
 #include "lib.h"
+#include "filesys.h"
 
 #define PASS 1
 #define FAIL 0
@@ -237,6 +238,80 @@ int terminal_write_test() {
 	vt_write(1, test1, 64);
 	printf("Printing test2 with 32 bytes\n");
 	vt_write(1, test2, 32);
+	return PASS;
+}
+
+int read_dentry_by_name_test(const uint8_t* fname){
+	TEST_HEADER;
+
+	dentry_t dentry;
+	int32_t result;
+	const uint8_t* test_fname = "BYDBYDBYD";
+
+	if(read_dentry_by_name(test_fname, &dentry) != -1) return FAIL;
+
+	result = read_dentry_by_name(fname, &dentry);
+	if(result == -1 || strncmp((int8_t*)dentry.file_name, (int8_t*)fname, MAX_FILE_NAME) != 0) return FAIL;
+	printf("The dentry's filename is %s\n", dentry.file_name);
+	printf("The dentry's filetype is %s\n", dentry.file_type);
+	printf("The dentry's inode index is %s\n", dentry.inode_index);
+	return PASS;
+}
+
+int read_dentry_by_index_test(uint32_t index){
+	TEST_HEADER;
+
+	dentry_t dentry;
+	int32_t result;
+
+	if(read_dentry_by_index(63, &dentry) != -1) return -1;
+
+	result = read_dentry_by_index(index, &dentry);
+	if(result == -1) return FAIL;
+	printf("The dentry's filename is %s\n", dentry.file_name);
+	printf("The dentry's filetype is %s\n", dentry.file_type);
+	printf("The dentry's inode index is %s\n", dentry.inode_index);		// index is not the inode index
+	return PASS;
+}
+
+int dir_read_test(){
+	TEST_HEADER;
+	
+	int i;
+	uint8_t buf[MAX_FILE_NAME];
+
+	dir_open(NULL);
+	if(dir_read(0, NULL, 0) != -1) return FAIL;
+	dir_close(0);
+
+	dir_open(NULL);
+	for(i = 0; i < MAX_FILE_NUM + 1; i++){
+		if(dir_read(0, buf, 0) == -1) return PASS;
+		printf("The %i dentry has file name %s\n", i, buf);
+	}
+	return FAIL;
+}
+
+int fread_test(const uint8_t* fname){
+	TEST_HEADER;
+	
+	uint8_t buf1[1024];
+	uint8_t buf2[2048];
+	uint8_t buf3[2048];
+	uint8_t buf4[4096 + 4096+ 1024];
+
+	fopen(fname);
+	if(fread(0, buf1, 1024) == -1) return FAIL;
+	printf("First reading result: %s", buf1);
+	if(fread(0, buf2, 2048) == -1) return FAIL;
+	printf("Second reading result: %s", buf2);
+	if(fread(0, buf3, 2048) == -1) return FAIL;
+	printf("First reading result: %s", buf3);
+	fclose(0);
+
+	fopen(fname);
+	if(fread(0, buf4, 4096 + 4096+ 1024) == -1) return FAIL;
+	fclose(0);
 	return PASS;
 }
 

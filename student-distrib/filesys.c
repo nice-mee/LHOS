@@ -12,6 +12,9 @@ boot_block_t* boot_block;
 dentry_t* dentries;
 inode_t* inodes;
 data_block_t* datablocks;
+uint32_t dentry_position = 0;   // used to track the read position for dir_read
+uint32_t file_position = 0;     // used to track the read position for fread
+uint32_t cur_file_inode = 0;    // initialized after fopen
 
 /* filesys_init
  *
@@ -20,7 +23,7 @@ data_block_t* datablocks;
  * Outputs: none
  * Side Effects: None
  */
-void filesys_init(in_memory_boot_block){
+void filesys_init(boot_block_t* in_memory_boot_block){
     boot_block = in_memory_boot_block;
     dentries = boot_block->dentries;
     inodes = (inode_t*)(boot_block + 1);    // inodes following the boot_block
@@ -172,74 +175,49 @@ int32_t read_data(uint32_t inode, uint32_t offset, uint8_t* buf, uint32_t length
 
 /* dir_open
  *
- * allocate and initialize a directory stream
+ * open a directory
  * Inputs: fname - the name of directory to be open
  * Outputs: none
- * Return: file_stream_t* - the pointer to the directory stream if successfully
- *         NULL - if open fails
+ * Return: 0 if successfully, -1 if open fails
  * Side Effects: None
  */
-file_stream_t* dir_open(const uint8_t* fname){
-    dentry_t dentry;
-    operation_table_t* table_pointer;
-    file_stream_t* stream;
-
-    /* check if it is directory */
-    read_dentry_by_name(fname, &dentry);
-    if(dentry.file_type == DIR_FILE_TYPE){
-        /* allocate dynamic memory */
-        stream = malloc(sizeof(file_stream_t));
-        if(stream == NULL) return NULL;     // return NULL if allocate memory fails
-        table_pointer = malloc(sizeof(operation_table_t));
-        if(table_pointer == NULL){
-            // return NULL if allocate memory fails
-            free(stream);
-            return NULL;
-        }
-
-        /* initialize the fields of stream */
-        stream->operation_table = table_pointer;
-        table_pointer->open_operation = dir_open;
-        table_pointer->close_operation = dir_close;
-        table_pointer->read_operation = dir_read;
-        table_pointer->write_operation = dir_write;
-        stream->inode_index = 0;
-        stream->file_position = 0;
-        stream->flags = 0;                          // ????? I do not know how to set this
-        return stream;
-    } else {
-        // Open a file that is not directory
-        return NULL;
-    }
+int32_t dir_open(const uint8_t* fname){
+    dentry_position = 0;
+    return 0;       // as directory always here
 }
 
 /* dir_close
  *
- * close and free the directory stream
- * Inputs: stream - the stream to be closed
+ * close a directory
+ * Inputs: inode - the file associated with inode to be closed
  * Outputs: None
  * Return: 0 if successfully, -1 if fails
- * Side Effects:
+ * Side Effects: None
  */
-int32_t dir_close(file_stream_t* stream){
-    /* if stream is NULL, return -1 to indicate fails */
-    if(stream == NULL)  return -1;
-
-    free(stream->operation_table);
-    free(stream);
-    return 0;
+int32_t dir_close(uint32_t inode){
+    return 0;       // nothing to do here
 }
 
 /* dir_read
  *
  * read the directory
- * Inputs:
- * Outputs:
- * Return:
- * Side Effects:
+ * Inputs: inode - meaningless here
+ *         buf - the buffer to load the read data
+ *         index - meaningless here
+ * Outputs: None
+ * Return: 0 if successfully, -1 if fails
+ * Side Effects: None
  */
-int32_t dir_read(file_stream_t* stream, uint8_t* buf, uint32_t length){
-    // nothing to read
+int32_t dir_read(uint32_t inode, uint8_t* buf, uint32_t index){
+    dentry_t dentry;
+    /* read the dentry by index, index is recorded in dentry_position */
+    if(read_dentry_by_index(dentry_position, &dentry) == -1) return -1;
+
+    /* then copy the target dentry's file name into the buffer */
+    memcpy(buf, dentry.file_name, MAX_FILE_NAME);
+
+    /* update dentry position */
+    dentry_position++;                                          // return -1 if reaches the end
     return 0;
 }
 
@@ -251,93 +229,65 @@ int32_t dir_read(file_stream_t* stream, uint8_t* buf, uint32_t length){
  * Return:
  * Side Effects:
  */
-int32_t dir_write(file_stream_t* stream, const uint8_t* buf, uint32_t length){
-    return 0;
+int32_t dir_write(uint32_t inode, const uint8_t* buf, uint32_t count){
+    return -1;
 }
 
 
 /* fopen
  *
- * allocate and initialize a file stream
+ * open a file
  * Inputs: fname - the name of a file to be open
  * Outputs: none
- * Return: file_stream_t* - the pointer to the file stream if successful
- *         NULL - the open fails
+ * Return: 0 if successfully, -1 otherwise
  * Side Effects: None
  */
-file_stream_t* fopen(const uint8_t* fname){
+int32_t fopen(const uint8_t* fname){
     dentry_t dentry;
-    operation_table_t* table_pointer;
-    file_stream_t* stream;
+    /* check if file exists*/
+    if(read_dentry_by_name(fname, &dentry) == -1) return -1;
+    if(dentry.file_type != REGULAR_FILE_TYPE) return -1;
 
-    /* check if it is file */
-    read_dentry_by_name(fname, &dentry);
-    if(dentry.file_type == REGULAR_FILE_TYPE){
-        /* allocate dynamic memory */
-        stream = malloc(sizeof(file_stream_t));
-        if(stream == NULL) return NULL;     // return NULL if allocate memory fails
-        table_pointer = malloc(sizeof(operation_table_t));
-        if(table_pointer == NULL){
-            // return NULL if allocate memory fails
-            free(stream);
-            return NULL;
-        }
-
-        /* initialize the fields of stream */
-        stream->operation_table = table_pointer;
-        table_pointer->open_operation = fopen;
-        table_pointer->close_operation = fclose;
-        table_pointer->read_operation = fread;
-        table_pointer->write_operation = fwrite;
-        stream->inode_index = dentry.inode_index;
-        stream->file_position = 0;
-        stream->flags = 0;                          // ????? I do not know how to set this
-        return stream;
-    } else {
-        // Open a file that is not a regular file
-        return NULL;
-    }
+    /* initialize file_positoin */
+    cur_file_inode = dentry.inode_index;
+    file_position = 0;
+    return 0;
 }
 
 /* fclose
  *
- * close and free the file stream
- * Inputs: stream - the stream to be closed
+ * close the file associated with inode
+ * Inputs: inode - the file associated with inode to be closed
  * Outputs: None
  * Return: 0 if successfully, -1 if fails
  * Side Effects:
  */
-int32_t fclose(file_stream_t* stream){
-    /* if stream is NULL, return -1 to indicate fails */
-    if(stream == NULL)  return -1;
-
-    free(stream->operation_table);
-    free(stream);
-    return 0;
+int32_t fclose(uint32_t inode){
+    return 0;   // nothing to do here
 }
 
 /* fread
  *
  * read the file
- * Inputs: stream - the file stream
+ * Inputs: inode - meaningless here
  *         buf - the buffer to load the read data
- *         length - the length of bytes to be read
+ *         count - the length of bytes to be read
  * Outputs: None
  * Return: 0 if successful, -1 if fails
  * Side Effects: None
  */
-int32_t fread(file_stream_t* stream, uint8_t* buf, uint32_t length){
+int32_t fread(uint32_t inode, uint8_t* buf, uint32_t count){
     uint32_t bytes_read;
-    /* if stream or buf is NULL, return -1 to indicate failure */
-    if(stream == NULL || buf == NULL) return -1;
+    /* if inode out of boundary or buf is NULL, return -1 to indicate failure */
+    if(cur_file_inode >= boot_block->inodes_num || buf == NULL) return -1;
     
     /* read the data starting at the file_position */
-    bytes_read = read_data(stream->inode_index, stream->file_position, buf, length);
+    bytes_read = read_data(cur_file_inode, file_position, buf, count);
     if(bytes_read == -1) return -1; // indicate reads fail
     if(bytes_read == 0){
-        // reach the end, how to set file_position?????????????
+        file_position = inodes[cur_file_inode].length;       // return -1 if read next time as file end has been reached
     } else{
-        stream->file_position += length;        // update file_position
+        file_position += count;        // update file_position
     }
     return 0;
 }
@@ -350,6 +300,6 @@ int32_t fread(file_stream_t* stream, uint8_t* buf, uint32_t length){
  * Return:
  * Side Effects:
  */
-int32_t fwrite(file_stream_t* stream, const uint8_t* buf, uint32_t length){
-    return 0;
+int32_t fwrite(uint32_t inode, const uint8_t* buf, uint32_t count){
+    return -1;
 }

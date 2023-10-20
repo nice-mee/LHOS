@@ -6,7 +6,6 @@
 #define _FILESYS_H
 
 #include "types.h"
-#include "stdlib.h"
 
 /* define basic constant for mp3 file system */
 #define BLOCK_SIZE 4096     // 4kB per block
@@ -21,11 +20,12 @@
 #define REGULAR_FILE_TYPE 2 // unique number to represent regular file type, only this type has meaningful index node (inode)
 
 /* define basic function pointers for file descriptor */
+/*
 typedef struct file_stream_t file_stream_t;
 typedef file_stream_t* (*open_t)(const uint8_t* fname);
 typedef int32_t (*close_t)(file_stream_t stream);
 typedef int32_t (*read_t)(file_stream_t stream, uint8_t* buf, uint32_t length);
-typedef int32_t (*write_t)(file_stream_t stream, const uint8_t* buf, uint32_t length);
+typedef int32_t (*write_t)(file_stream_t stream, const uint8_t* buf, uint32_t length);*/
 
 
 /* define data structure used by file system */
@@ -56,6 +56,7 @@ typedef struct data_block_t{
 
 
 /* define data structure used by file descriptor */
+/*
 typedef struct operation_table_t{
     open_t open_operation;
     close_t close_operation;
@@ -68,7 +69,7 @@ typedef struct file_stream_t{
     uint32_t inode_index;               // only meaningful to regular file type, 0 for other types
     uint32_t file_position;             // keep track of where the user is currently reading from the file, updated each time after system call read
     uint32_t flags;                     // set to indicate this file descriptor is "in use"
-} file_stream_t;
+} file_stream_t;*/
 
 
 /* functions used by file system */
@@ -91,15 +92,15 @@ int32_t read_data(uint32_t inode, uint32_t offset, uint8_t* buf, uint32_t length
 /* for RTC operations is wrote in devices/rtc.h */
 
 /* for directory operations */
-file_stream_t* dir_open(const uint8_t* fname);
-int32_t dir_close(file_stream_t* stream);
-int32_t dir_read(file_stream_t* stream, uint8_t* buf, uint32_t length);
-int32_t dir_write(file_stream_t* stream, const uint8_t* buf, uint32_t length);
+int32_t dir_open(const uint8_t* fname);
+int32_t dir_close(uint32_t inode);
+int32_t dir_read(uint32_t inode, uint8_t* buf, uint32_t index);
+int32_t dir_write(uint32_t inode, const uint8_t* buf, uint32_t count);
 
 /* for regular file operations */
-file_stream_t* fopen(const uint8_t* fname);
-int32_t fclose(file_stream_t* stream);
-int32_t fread(file_stream_t* stream, uint8_t* buf, uint32_t length);
-int32_t fwrite(file_stream_t* stream, const uint8_t* buf, uint32_t length);
+int32_t fopen(const uint8_t* fname);
+int32_t fclose(uint32_t inode);
+int32_t fread(uint32_t inode, uint8_t* buf, uint32_t count);
+int32_t fwrite(uint32_t inode, const uint8_t* buf, uint32_t count);
 
 #endif /* _FILESYS_H */

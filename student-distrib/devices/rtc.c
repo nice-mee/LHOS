@@ -14,7 +14,6 @@ uint32_t rtc_time_counter;
  *               the RTC interrupt request line (IRQ).
  */
 void RTC_init(void) {
-    cli();
     printf("RTC_init\n");
     char prev;
     outb(RTC_B, RTC_PORT);     // select register B, and disable NMI
@@ -29,7 +28,6 @@ void RTC_init(void) {
     outb((prev & 0xF0) | RTC_BASE_FRE, RTC_CMOS_PORT);  // set the frequency to 2 Hz
 
     rtc_time_counter = 0;
-    sti();
     enable_irq(RTC_IRQ);
 }
 

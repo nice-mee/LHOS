@@ -311,6 +311,7 @@ int fread_test(const uint8_t* fname){
 
 	fopen(fname);
 	if(fread(0, buf4, 4096 + 4096+ 1024) == -1) return FAIL;
+	printf("First reading result: %s", buf4);
 	fclose(0);
 	return PASS;
 }

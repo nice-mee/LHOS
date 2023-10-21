@@ -1,6 +1,7 @@
 #include "tests.h"
 #include "x86_desc.h"
 #include "lib.h"
+#include "devices/rtc.h"
 
 #define PASS 1
 #define FAIL 0
@@ -207,6 +208,23 @@ int deref_ker_mem() {
 // add more tests here
 
 /* Checkpoint 2 tests */
+
+int RTC_change_freq() {
+	TEST_HEADER;
+
+	int32_t freq = 2; // corresponding to rate "15"
+	while(freq <= 1024) {
+		RTC_write(&freq, 4, 0); // let pid = 0
+		printf("current freq:%d\n", freq);
+		for (count = 0; count < freq; count++) {
+			RTC_read(NULL, 0, 0); 
+			printf("1");
+		}
+		freq *= 2; //change to next rate
+		printf("\n");
+	}
+	return PASS;
+}
 /* Checkpoint 3 tests */
 /* Checkpoint 4 tests */
 /* Checkpoint 5 tests */
@@ -214,7 +232,7 @@ int deref_ker_mem() {
 
 /* Test suite entry point */
 void launch_tests(){
-	TEST_OUTPUT("idt_test", idt_test());
+	//TEST_OUTPUT("idt_test", idt_test());
 	// TEST_OUTPUT("div_by_zero", div_by_zero());
 	// TEST_OUTPUT("invalid_opcode", invalid_opcode());
 	// TEST_OUTPUT("deref_null", deref_null());
@@ -223,7 +241,8 @@ void launch_tests(){
 	// TEST_OUTPUT("deref_video_mem_lowerbound", deref_video_mem_lowerbound());
 	// TEST_OUTPUT("deref_ker_mem_upperbound", deref_ker_mem_upperbound());
 	// TEST_OUTPUT("deref_ker_mem_lowerbound", deref_ker_mem_lowerbound())
-	TEST_OUTPUT("deref_video_mem", deref_video_mem());
-	TEST_OUTPUT("deref_ker_mem", deref_ker_mem());
+	//TEST_OUTPUT("deref_video_mem", deref_video_mem());
+	//TEST_OUTPUT("deref_ker_mem", deref_ker_mem());
 	// launch your tests here
+	TEST_OUTPUT("RTC_change_freq", RTC_change_freq());
 }

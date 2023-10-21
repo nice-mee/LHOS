@@ -7,7 +7,7 @@ uint32_t rtc_time_counter;
 /* struct storing frequency and counter for process with
 different frequencies. Used to implement virtualization */
 typedef struct {
-    bool proc_exist;
+    int32_t proc_exist;
     int32_t proc_freq;
     int32_t proc_count;
 } proc_freqcount_pair;
@@ -17,7 +17,7 @@ static proc_freqcount_pair RTC_proc_list[MAX_PROC_NUM];
 /* RTC_init - Initialization of Real-Time Clock (RTC)
  * 
  * Initializes the RTC to a base frequency of 1024.
- * 
+ *  
  * Inputs: none
  * Outputs: none (Configuration of RTC registers)
  * Side Effects: Modifies RTC control registers A and B. Resets the rtc_time_counter and enables
@@ -59,10 +59,8 @@ void __intr_RTC_handler(void) {
     rtc_time_counter ++;
     int32_t pid;
     /* update each process's counter */
-    for (pid = 0; pid < MAX_PNUM; ++pid) {
-        if(RTC_proc_list[pid].proc_exist) {
+    for (pid = 0; pid < MAX_PROC_NUM; ++pid) {
             RTC_proc_list[pid].proc_count --;
-        }
     }
     outb(RTC_C &0x0F, RTC_PORT); // select register C
     inb(RTC_CMOS_PORT);		    // just throw away contents
@@ -119,7 +117,7 @@ int32_t RTC_read(void* buf, int32_t nbytes, int32_t proc_id) {
     /* virtualization: wait counter reaches zero */
     while(RTC_proc_list[proc_id].proc_count);
     /* reset counter */
-    RTC_proc_list[proc_id].proc_count = 1024 / RTC_proc_list[proc_id].proc_freq;
+    RTC_proc_list[proc_id].proc_count = RTC_BASE_FREQ / RTC_proc_list[proc_id].proc_freq;
     return 0;
 }
 
@@ -134,18 +132,14 @@ int32_t RTC_read(void* buf, int32_t nbytes, int32_t proc_id) {
  *    0 for success, -1 for invalid arguments
  * Side Effects: adjusts the freq for the process
  */
-int32_t RTC_write(const void* buf, int32_t nbytes, int32_t proc_id) {
+int32_t RTC_write(void* buf, int32_t nbytes, int32_t proc_id) {
     uint32_t freq = *(uint32_t*) buf;
-    /* validate the existence of the process */
-    if(!RTC_proc_list[proc_id].proc_exist) {
-        return -1;
-    }
     /* ensuring freq is a power of 2 and within acceptable limits */
     if(!(freq && !(freq & (freq - 1))) || freq > 1024) {
         return -1;
     }
     /* adjusts the freq */
     RTC_proc_list[proc_id].proc_freq = freq;
-    RTC_proc_list[proc_id].proc_count = RTC_BASE_FREQ / freq;
+    RTC_proc_list[proc_id].proc_count = RTC_BASE_FREQ / RTC_proc_list[proc_id].proc_freq;
     return 0;
 }

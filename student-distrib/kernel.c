@@ -8,6 +8,7 @@
 #include "i8259.h"
 #include "idt.h"
 #include "paging.h"
+#include "filesys.h"
 #include "debug.h"
 #include "tests.h"
 #include "devices/rtc.h"
@@ -25,6 +26,7 @@
 void entry(unsigned long magic, unsigned long addr) {
 
     multiboot_info_t *mbi;
+    boot_block_t* in_memory_boot_block;
 
     /* Clear the screen. */
     clear();
@@ -60,6 +62,8 @@ void entry(unsigned long magic, unsigned long addr) {
         int mod_count = 0;
         int i;
         module_t* mod = (module_t*)mbi->mods_addr;
+        /* get the in-memory boot block's address */
+        in_memory_boot_block = (boot_block_t*)(mod->mod_start);
         while (mod_count < mbi->mods_count) {
             printf("Module %d loaded at address: 0x%#x\n", mod_count, (unsigned int)mod->mod_start);
             printf("Module %d ends at address: 0x%#x\n", mod_count, (unsigned int)mod->mod_end);
@@ -150,8 +154,9 @@ void entry(unsigned long magic, unsigned long addr) {
     /* Initialize devices, memory, filesystem, enable device interrupts on the
      * PIC, any other initialization stuff... */
     idt_init();
-    RTC_init();
+    //RTC_init();
     keyboard_init();
+    filesys_init(in_memory_boot_block);
 
     /* Initialize paging */
     paging_init();

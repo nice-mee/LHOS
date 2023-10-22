@@ -54,6 +54,7 @@ void RTC_init(void) {
  */
 void __intr_RTC_handler(void) {
     cli();
+    send_eoi(RTC_IRQ);
     rtc_time_counter ++;
     int32_t pid;
     /* update each process's counter */
@@ -63,7 +64,6 @@ void __intr_RTC_handler(void) {
     outb(RTC_C &0x0F, RTC_PORT); // select register C
     inb(RTC_CMOS_PORT);		    // just throw away contents
 
-    send_eoi(RTC_IRQ);
     sti();
 }
 
@@ -113,10 +113,12 @@ int32_t RTC_close(int32_t proc_id) {
  */
 int32_t RTC_read(void* buf, int32_t nbytes, int32_t proc_id) {
     /* virtualization: wait counter reaches zero */
-    while(RTC_proc_list[proc_id].proc_count);
+    while(RTC_proc_list[proc_id].proc_count > 0);
     /* reset counter */
+    cli();
     if(RTC_proc_list[proc_id].proc_freq)
         RTC_proc_list[proc_id].proc_count = RTC_BASE_FREQ / RTC_proc_list[proc_id].proc_freq;
+    sti();
     return 0;
 }
 
@@ -135,11 +137,12 @@ int32_t RTC_write(void* buf, int32_t nbytes, int32_t proc_id) {
     uint32_t freq = *(uint32_t*) buf;
     /* ensuring freq is a power of 2 and within acceptable limits */
     if(!(freq && !(freq & (freq - 1))) || freq > 1024) {
-        printf("chidafenla");
         return -1;
     }
     /* adjusts the freq */
+    cli();
     RTC_proc_list[proc_id].proc_freq = freq;
     RTC_proc_list[proc_id].proc_count = RTC_BASE_FREQ / RTC_proc_list[proc_id].proc_freq;
+    sti();
     return 0;
 }

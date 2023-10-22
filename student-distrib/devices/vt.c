@@ -48,13 +48,13 @@ static int cur_vt = 0;
 
 /* vt_init
  *   DESCRIPTION: Initialize virtual terminal.
+ *                This function has to be called before printing anything on the screen!!!
  *   INPUTS: none
  *   OUTPUTS: none
  *   RETURN VALUE: none
  *   SIDE EFFECTS: none
  */
 void vt_init(void) {
-    // cli();
     vt_state[cur_vt].screen_x = 0;
     vt_state[cur_vt].screen_y = 0;
     vt_state[cur_vt].video_mem = (char*)VIDEO;
@@ -64,7 +64,6 @@ void vt_init(void) {
     vt_state[cur_vt].kbd.alt = 0;
     vt_state[cur_vt].input_buf_ptr = 0;
     vt_state[cur_vt].enter_pressed = 0;
-    // sti();
 }
 
 /* vt_open
@@ -75,7 +74,7 @@ void vt_init(void) {
  *   SIDE EFFECTS: none
  */
 void vt_open(void) {
-    // Do nothing
+    // Do nothing because everything is done in vt_init()
 }
 
 /* vt_close
@@ -104,6 +103,10 @@ int32_t vt_read(int32_t fd, void* buf, int32_t nbytes) {
 
     // Wait for enter key
     while (!vt_state[cur_vt].enter_pressed);
+
+    // Critical section should be enforced to prevent interrupt from modifying user_buf
+    // This is highly unlikely (since human input is pretty slow) but still possible
+    cli();
     vt_state[cur_vt].enter_pressed = 0;
 
     // Copy user buffer to buf
@@ -111,6 +114,7 @@ int32_t vt_read(int32_t fd, void* buf, int32_t nbytes) {
     for (i = 0; i < nbytes && i < INPUT_BUF_SIZE && vt_state[cur_vt].user_buf[i] != '\0'; i++) {
         ((char*)buf)[i] = vt_state[cur_vt].user_buf[i];
     }
+    sti();
 
     return i;
 }
@@ -134,6 +138,13 @@ int32_t vt_write(int32_t fd, const void* buf, int32_t nbytes) {
     return i;
 }
 
+/* scroll_page (PRIVATE)
+ *   DESCRIPTION: Scroll the screen up by one line.
+ *   INPUTS: none
+ *   OUTPUTS: none
+ *   RETURN VALUE: none
+ *   SIDE EFFECTS: video memory is modified
+ */
 static void scroll_page(void) {
     char * video_mem = vt_state[cur_vt].video_mem;
     int i;
@@ -146,6 +157,13 @@ static void scroll_page(void) {
     }
 }
 
+/* print_newline (PRIVATE)
+ *   DESCRIPTION: Print a newline character on the screen.
+ *   INPUTS: none
+ *   OUTPUTS: none
+ *   RETURN VALUE: none
+ *   SIDE EFFECTS: video memory is modified if scrooling happens
+ */
 static void print_newline(void) {
     vt_state[cur_vt].screen_y++;
     vt_state[cur_vt].screen_x = 0;
@@ -155,6 +173,13 @@ static void print_newline(void) {
     }
 }
 
+/* print_backspace (PRIVATE)
+ *   DESCRIPTION: Print a backspace character on the screen.
+ *   INPUTS: none
+ *   OUTPUTS: none
+ *   RETURN VALUE: none
+ *   SIDE EFFECTS: video memory is modified
+ */
 static void print_backspace(void) {
     char * video_mem = vt_state[cur_vt].video_mem;
     vt_state[cur_vt].screen_x--;
@@ -170,22 +195,38 @@ static void print_backspace(void) {
     *(uint8_t *)(video_mem + ((NUM_COLS * vt_state[cur_vt].screen_y + vt_state[cur_vt].screen_x) << 1) + 1) = ATTRIB;
 }
 
+/* redraw_cursor (PRIVATE)
+ *   DESCRIPTION: Redraw the cursor on the screen.
+ *   INPUTS: none
+ *   OUTPUTS: none
+ *   RETURN VALUE: none
+ *   SIDE EFFECTS: video memory is modified
+ */
 static void redraw_cursor(void) {
     uint16_t pos = vt_state[cur_vt].screen_y * NUM_COLS + vt_state[cur_vt].screen_x;
- 
+
 	outb(0x0F, 0x3D4);
 	outb((uint8_t) (pos & 0xFF), 0x3D5);
 	outb(0x0E, 0x3D4);
 	outb((uint8_t) ((pos >> 8) & 0xFF), 0x3D5);
 }
 
-static void process_char(keycode_t keycode, int release) {
+/* process_default (PRIVATE)
+ *   DESCRIPTION: Process default cases in vt_keyboard().
+ *                This function is inside interrupt context!!!
+ *   INPUTS: keycode -- keycode of the key pressed
+ *           release -- whether the key is released
+ *   OUTPUTS: none
+ *   RETURN VALUE: none
+ *   SIDE EFFECTS: none
+ */
+static void process_default(keycode_t keycode, int release) {
     // Ignore key releases
     if (release)
         return;
     
     // Handle special key combinations
-    if (vt_state[cur_vt].kbd.ctrl && keycode == KEY_L) {
+    if (vt_state[cur_vt].kbd.ctrl && keycode == KEY_L) { // Ctrl + L
         clear();
         vt_state[cur_vt].input_buf_ptr = 0;
         memset(vt_state[cur_vt].input_buf, '\0', INPUT_BUF_SIZE * sizeof(char));
@@ -253,8 +294,11 @@ void vt_keyboard(keycode_t keycode, int release) {
                 vt_state[cur_vt].input_buf[vt_state[cur_vt].input_buf_ptr] = '\0';
             }
             break;
+        case KEY_TAB:
+            process_default(KEY_SPACE, release); // Treat tab as space, easier to implement
+            break;
         default:
-            process_char(keycode, release);
+            process_default(keycode, release);
             break;
     }
 }

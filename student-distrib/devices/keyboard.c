@@ -19,9 +19,16 @@ static const uint8_t ps2_set1_keycode[128] = {
     // Remaining keys are not used but will be mapped to KEY_RESERVED (0) anyway
 };
 
+/* keyboard_intr_handler
+ *   DESCRIPTION: keyboard interrupt handler
+ *   INPUTS: none
+ *   OUTPUTS: none
+ *   RETURN VALUE: none
+ *   SIDE EFFECTS: may print a character to the screen
+ */
 DEFINE_DEVICE_HANDLER(keyboard) {
     cli();
-    int keycode;
+    keycode_t keycode;
     int release = 0;
     send_eoi(KEYBOARD_IRQ);
     unsigned char scan_code = inb(KEYBOARD_PORT);
@@ -34,6 +41,13 @@ DEFINE_DEVICE_HANDLER(keyboard) {
     sti();
 }
 
+/* keyboard_init
+ *   DESCRIPTION: enables keyboard interrupts
+ *   INPUTS: none
+ *   OUTPUTS: none
+ *   RETURN VALUE: none
+ *   SIDE EFFECTS: enables keyboard interrupts
+ */
 DEFINE_DEVICE_INIT(keyboard) {
     enable_irq(KEYBOARD_IRQ);
 }

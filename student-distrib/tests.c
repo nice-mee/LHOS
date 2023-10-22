@@ -209,6 +209,39 @@ int deref_ker_mem() {
 
 /* Checkpoint 2 tests */
 
+int terminal_read_test() {
+	TEST_HEADER;
+
+	char buf[128];
+	int i;
+	for (i = 0; i < 4; i++) {
+		memset(buf, '\0', 128);
+		printf("Please enter something:");
+		int32_t ret = vt_read(0, buf, 128);
+		printf("Content of input      :%s", buf);
+		printf("Return value: %d\n", ret);
+	}
+	return PASS;
+}
+
+int terminal_write_test() {
+	TEST_HEADER;
+
+	char test1[128] = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Morbi nec eros placerat, pretium justo eget, porta leo. Duis eget in.\n"; // 128 bytes including '\0'
+	char test2[128] = "Lorem ipsum dolor sit amet, consectetur adipiscing elit fusce.\n"; // 64 bytes including first '\0'
+
+	printf("Printing test1 with 128 bytes\n");
+	vt_write(1, test1, 128);
+	printf("Printing test2 with 128 bytes\n");
+	vt_write(1, test2, 128);
+	printf("Printing test1 with 64 bytes\n");
+	vt_write(1, test1, 64);
+	printf("Printing test2 with 32 bytes\n");
+	vt_write(1, test2, 32);
+	return PASS;
+}
+
+
 int RTC_change_freq() {
 	TEST_HEADER;
 
@@ -243,8 +276,8 @@ void launch_tests(){
 	// TEST_OUTPUT("deref_video_mem_lowerbound", deref_video_mem_lowerbound());
 	// TEST_OUTPUT("deref_ker_mem_upperbound", deref_ker_mem_upperbound());
 	// TEST_OUTPUT("deref_ker_mem_lowerbound", deref_ker_mem_lowerbound())
-	//TEST_OUTPUT("deref_video_mem", deref_video_mem());
-	//TEST_OUTPUT("deref_ker_mem", deref_ker_mem());
+	TEST_OUTPUT("deref_video_mem", deref_video_mem());
+	TEST_OUTPUT("deref_ker_mem", deref_ker_mem());
 	// launch your tests here
 	TEST_OUTPUT("RTC_change_freq", RTC_change_freq());
 }

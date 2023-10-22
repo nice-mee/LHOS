@@ -17,3 +17,6 @@
 .vscode/
 .idea/
 *.code-workspace
+
+# Makefile generated files
+Makefile.dep

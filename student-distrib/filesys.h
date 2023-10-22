@@ -10,7 +10,7 @@
 /* define basic constant for mp3 file system */
 #define BLOCK_SIZE 4096     // 4kB per block
 #define DIR_ENTRY_SIZE 64   // each directory entry takes 64 bytes
-#define MAX_FILE_NUM 62     // max number of files supported as (BLOCK_SIZE / DIR_ENTRY_SIZE) - 1(statistics) - 1(first directory entry) = 62
+#define MAX_FILE_NUM 63     // max number of files supported as (BLOCK_SIZE / DIR_ENTRY_SIZE) - 1(statistics) = 63
 
 
 /* define basic constant for directory entry */
@@ -41,7 +41,6 @@ typedef struct boot_block{
     uint32_t inodes_num;
     uint32_t data_blocks_num;
     uint8_t reserved[52];   // 52 reserved bytes, DIR_ENTRY_SIZE - 4(dir_entry_num) - 4(inodes_num) - 4(data_blocks_num) = 52
-    dentry_t directory;     // first directory entry always refers to the directory itself
     dentry_t dentries[MAX_FILE_NUM];
 } boot_block_t;
 

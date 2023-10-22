@@ -154,7 +154,7 @@ void entry(unsigned long magic, unsigned long addr) {
     /* Initialize devices, memory, filesystem, enable device interrupts on the
      * PIC, any other initialization stuff... */
     idt_init();
-    RTC_init();
+    //RTC_init();
     keyboard_init();
     filesys_init(in_memory_boot_block);
 

@@ -15,6 +15,7 @@ data_block_t* datablocks;
 uint32_t dentry_position = 0;   // used to track the read position for dir_read
 uint32_t file_position = 0;     // used to track the read position for fread
 uint32_t cur_file_inode = 0;    // initialized after fopen
+uint32_t file_end = 0;
 
 /* filesys_init
  *
@@ -43,14 +44,14 @@ void filesys_init(boot_block_t* in_memory_boot_block){
 int32_t read_dentry_by_name(const uint8_t* fname, dentry_t* dentry){
     uint32_t i;
     /* fail if fname invalid */
-    if(fname == NULL || strlen((int8_t*)fname) > 32) return -1;
+    if(fname == NULL) return -1;
 
     /* fail if dentry is invalid */
     if(dentry == NULL) return -1;
 
     /* search for the target dentry with the same name */
     for(i = 0; i < boot_block->dir_entry_num; i++){
-        if(strncmp((int8_t*)fname, (int8_t*)dentries[i].file_name, MAX_FILE_NAME) == 0){
+        if(strncmp((const char*)fname, (const char*)dentries[i].file_name, MAX_FILE_NAME) == 0){
             /* if found, call read_dentry_by_index to copy them */
             read_dentry_by_index(i, dentry);
             return 0;
@@ -98,15 +99,17 @@ int32_t read_data(uint32_t inode, uint32_t offset, uint8_t* buf, uint32_t length
     uint32_t i;
     uint32_t j;
     uint32_t byte_read = 0;     // record the index to load
-    uint32_t file_end = 0;      // check if file has reached the end
     uint32_t start_datablock;
     uint32_t end_datablock;     // closed interval
     uint32_t startbyte_index;
     uint32_t endbyte_index;     // closed interval
     data_block_t cur_datablock;
     inode_t cur_inode;
-    /* fail if inode out of boundary or too much offset */
-    if(inode >= boot_block->inodes_num || offset > inodes[inode].length) return -1;
+    /* fail if inode out of boundary */
+    if(inode >= boot_block->inodes_num) return -1;
+
+    /* return 0 if reach the end */
+    if(offset >= inodes[inode].length) return 0;
 
     /* fail if buf is invalid */
     if(buf == NULL) return -1;
@@ -128,18 +131,14 @@ int32_t read_data(uint32_t inode, uint32_t offset, uint8_t* buf, uint32_t length
     endbyte_index = (offset + length - 1) % BLOCK_SIZE;
     cur_inode = inodes[inode];
 
-    
+
     if(start_datablock == end_datablock){
         /* if only involves single datablock, read it and return */
         cur_datablock = datablocks[cur_inode.data_block_index[start_datablock]];
-        for(i = 0; i <= length; i++){
+        for(i = 0; i < length; i++){
             buf[i] = cur_datablock.data[startbyte_index + i];
         }
-        if(file_end == 1){
-            return 0;
-        } else {
-            return length;
-        }
+        return length;
     }
 
     /* if involves multiple datablocks, read the rest of start block */
@@ -165,11 +164,7 @@ int32_t read_data(uint32_t inode, uint32_t offset, uint8_t* buf, uint32_t length
         byte_read++;
     }
 
-    if(file_end == 1){
-        return 0;
-    } else {
-        return length;
-    }
+    return length;
 }
 
 
@@ -210,6 +205,9 @@ int32_t dir_close(uint32_t inode){
  */
 int32_t dir_read(uint32_t inode, uint8_t* buf, uint32_t index){
     dentry_t dentry;
+    /* if buf is null, read fails */
+    if(buf == NULL) return -1;
+
     /* read the dentry by index, index is recorded in dentry_position */
     if(read_dentry_by_index(dentry_position, &dentry) == -1) return -1;
 
@@ -244,13 +242,14 @@ int32_t dir_write(uint32_t inode, const uint8_t* buf, uint32_t count){
  */
 int32_t fopen(const uint8_t* fname){
     dentry_t dentry;
-    /* check if file exists*/
+    /* check if file exists, only check FILE_MAX_NAME size */
     if(read_dentry_by_name(fname, &dentry) == -1) return -1;
     if(dentry.file_type != REGULAR_FILE_TYPE) return -1;
 
-    /* initialize file_positoin */
+    /* initialize variable */
     cur_file_inode = dentry.inode_index;
     file_position = 0;
+    file_end = 0;
     return 0;
 }
 
@@ -280,13 +279,13 @@ int32_t fread(uint32_t inode, uint8_t* buf, uint32_t count){
     uint32_t bytes_read;
     /* if inode out of boundary or buf is NULL, return -1 to indicate failure */
     if(cur_file_inode >= boot_block->inodes_num || buf == NULL) return -1;
-    
+
     /* read the data starting at the file_position */
     bytes_read = read_data(cur_file_inode, file_position, buf, count);
     if(bytes_read == -1) return -1; // indicate reads fail
-    if(bytes_read == 0){
-        file_position = inodes[cur_file_inode].length;       // return -1 if read next time as file end has been reached
-    } else{
+    if(file_end == 1){
+        file_position = inodes[cur_file_inode].length;       // file end has been reached
+    } else {
         file_position += count;        // update file_position
     }
     return 0;

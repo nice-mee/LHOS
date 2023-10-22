@@ -305,23 +305,21 @@ int fread_test(const uint8_t* fname){
 
 
 	if(fopen(fname) == -1) return FAIL;
-	if(fread(0, buf1, 5) == -1) return FAIL;
-	printf("First reading result:\n%s\n", buf1);
-	if(fread(0, buf2, 19) == -1) return FAIL;
-	printf("Second reading result:\n%s\n", buf2);
+	if(fread(0, buf1, 1024) == -1) return FAIL;
+	// printf("First reading result:\n%s\n", buf1);
+	vt_write(1, buf1, 1024);
+	if(fread(0, buf2, 4096) == -1) return FAIL;
+	// printf("Second reading result:\n%s\n", buf2);
+	vt_write(1, buf2, 4096);
 	if(fread(0, buf3, 2048) == -1) return FAIL;
-	printf("Third reading result:\n%s\n", buf3);
-	if(fread(0, buf4, 2048) == -1) return FAIL;
-	printf("Forth reading result:\n%s\n", buf4);
+	// printf("Third reading result:\n%s\n", buf3);
+	vt_write(1, buf3, 2048);
 	fclose(0);
 
-
-	/*
 	fopen(fname);
-	if(fread(0, buf4, 4096 + 1024) == -1) return FAIL;
+	if(fread(0, buf4, 4096 + 2048 + 1024) == -1) return FAIL;
 	printf("First reading result:\n%s\n", buf4);
 	fclose(0);
-	*/
 
 	return PASS;
 }
@@ -361,6 +359,6 @@ void launch_tests(){
 	TEST_OUTPUT("read_dentry_by_name_test", read_dentry_by_name_test("verylargetextwithverylongname.txt"));
 	*/
 	// TEST_OUTPUT("dir_read_test", dir_read_test());
-	TEST_OUTPUT("fread_test", fread_test("frame0.txt"));
-	//TEST_OUTPUT("fread_test", fread_test("verylargetextwithverylongname.txt"));
+	// TEST_OUTPUT("fread_test", fread_test("frame0.txt"));
+	TEST_OUTPUT("fread_test", fread_test("verylargetextwithverylongname.txt"));
 }

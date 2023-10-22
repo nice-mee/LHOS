@@ -1,5 +1,6 @@
 #ifndef _RTC_H_
 #define _RTC_H_
+#include "../lib.h"
 
 #define RTC_IRQ         8       // the RTC will generate IRQ 8
 
@@ -29,6 +30,6 @@ void __intr_RTC_handler(void);
 int32_t RTC_open(int32_t proc_id);
 int32_t RTC_close(int32_t proc_id);
 int32_t RTC_read(void* buf, int32_t nbytes, int32_t proc_id);
-int32_t RTC_write(const void* buf, int32_t nbytes, int32_t proc_id);
+int32_t RTC_write(void* buf, int32_t nbytes, int32_t proc_id);
 
 #endif /* _RTC_H_ */

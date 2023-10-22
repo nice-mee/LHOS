@@ -213,10 +213,12 @@ int RTC_change_freq() {
 	TEST_HEADER;
 
 	int32_t freq = 2; // corresponding to rate "15"
-	while(freq <= 1024) {
-		RTC_write(&freq, 4, 0); // let pid = 0
+	int32_t i;
+	while(freq <= RTC_BASE_FREQ) {
 		printf("current freq:%d\n", freq);
-		for (count = 0; count < freq; count++) {
+		RTC_write(&freq, 4, 0); // let pid = 0
+		
+		for (i = 0; i < freq; ++i) {
 			RTC_read(NULL, 0, 0); 
 			printf("1");
 		}

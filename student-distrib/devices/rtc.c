@@ -117,7 +117,8 @@ int32_t RTC_read(void* buf, int32_t nbytes, int32_t proc_id) {
     /* virtualization: wait counter reaches zero */
     while(RTC_proc_list[proc_id].proc_count);
     /* reset counter */
-    RTC_proc_list[proc_id].proc_count = RTC_BASE_FREQ / RTC_proc_list[proc_id].proc_freq;
+    if(RTC_proc_list[proc_id].proc_freq)
+        RTC_proc_list[proc_id].proc_count = RTC_BASE_FREQ / RTC_proc_list[proc_id].proc_freq;
     return 0;
 }
 
@@ -136,6 +137,7 @@ int32_t RTC_write(void* buf, int32_t nbytes, int32_t proc_id) {
     uint32_t freq = *(uint32_t*) buf;
     /* ensuring freq is a power of 2 and within acceptable limits */
     if(!(freq && !(freq & (freq - 1))) || freq > 1024) {
+        printf("chidafenla");
         return -1;
     }
     /* adjusts the freq */

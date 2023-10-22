@@ -48,7 +48,7 @@ static int cur_vt = 0;
 
 /* vt_init
  *   DESCRIPTION: Initialize virtual terminal.
-                  This function has to be called before printing anything on the screen!!!
+ *                This function has to be called before printing anything on the screen!!!
  *   INPUTS: none
  *   OUTPUTS: none
  *   RETURN VALUE: none
@@ -103,6 +103,10 @@ int32_t vt_read(int32_t fd, void* buf, int32_t nbytes) {
 
     // Wait for enter key
     while (!vt_state[cur_vt].enter_pressed);
+
+    // Critical section should be enforced to prevent interrupt from modifying user_buf
+    // This is highly unlikely (since human input is pretty slow) but still possible
+    cli();
     vt_state[cur_vt].enter_pressed = 0;
 
     // Copy user buffer to buf
@@ -110,6 +114,7 @@ int32_t vt_read(int32_t fd, void* buf, int32_t nbytes) {
     for (i = 0; i < nbytes && i < INPUT_BUF_SIZE && vt_state[cur_vt].user_buf[i] != '\0'; i++) {
         ((char*)buf)[i] = vt_state[cur_vt].user_buf[i];
     }
+    sti();
 
     return i;
 }
@@ -133,7 +138,7 @@ int32_t vt_write(int32_t fd, const void* buf, int32_t nbytes) {
     return i;
 }
 
-/* scroll_page
+/* scroll_page (PRIVATE)
  *   DESCRIPTION: Scroll the screen up by one line.
  *   INPUTS: none
  *   OUTPUTS: none
@@ -152,7 +157,7 @@ static void scroll_page(void) {
     }
 }
 
-/* print_newline
+/* print_newline (PRIVATE)
  *   DESCRIPTION: Print a newline character on the screen.
  *   INPUTS: none
  *   OUTPUTS: none
@@ -167,7 +172,8 @@ static void print_newline(void) {
         vt_state[cur_vt].screen_y = NUM_ROWS - 1;
     }
 }
-/* print_backspace
+
+/* print_backspace (PRIVATE)
  *   DESCRIPTION: Print a backspace character on the screen.
  *   INPUTS: none
  *   OUTPUTS: none
@@ -189,7 +195,7 @@ static void print_backspace(void) {
     *(uint8_t *)(video_mem + ((NUM_COLS * vt_state[cur_vt].screen_y + vt_state[cur_vt].screen_x) << 1) + 1) = ATTRIB;
 }
 
-/* redraw_cursor
+/* redraw_cursor (PRIVATE)
  *   DESCRIPTION: Redraw the cursor on the screen.
  *   INPUTS: none
  *   OUTPUTS: none
@@ -198,15 +204,16 @@ static void print_backspace(void) {
  */
 static void redraw_cursor(void) {
     uint16_t pos = vt_state[cur_vt].screen_y * NUM_COLS + vt_state[cur_vt].screen_x;
- 
+
 	outb(0x0F, 0x3D4);
 	outb((uint8_t) (pos & 0xFF), 0x3D5);
 	outb(0x0E, 0x3D4);
 	outb((uint8_t) ((pos >> 8) & 0xFF), 0x3D5);
 }
 
-/* process_default
+/* process_default (PRIVATE)
  *   DESCRIPTION: Process default cases in vt_keyboard().
+ *                This function is inside interrupt context!!!
  *   INPUTS: keycode -- keycode of the key pressed
  *           release -- whether the key is released
  *   OUTPUTS: none
@@ -219,7 +226,7 @@ static void process_default(keycode_t keycode, int release) {
         return;
     
     // Handle special key combinations
-    if (vt_state[cur_vt].kbd.ctrl && keycode == KEY_L) {
+    if (vt_state[cur_vt].kbd.ctrl && keycode == KEY_L) { // Ctrl + L
         clear();
         vt_state[cur_vt].input_buf_ptr = 0;
         memset(vt_state[cur_vt].input_buf, '\0', INPUT_BUF_SIZE * sizeof(char));

@@ -9,7 +9,7 @@ different frequencies. Used to implement virtualization */
 typedef struct {
     int32_t proc_exist;
     int32_t proc_freq;
-    int32_t proc_count;
+    volatile int32_t proc_count;
 } proc_freqcount_pair;
 
 static proc_freqcount_pair RTC_proc_list[MAX_PROC_NUM];

@@ -48,13 +48,13 @@ static int cur_vt = 0;
 
 /* vt_init
  *   DESCRIPTION: Initialize virtual terminal.
+                  This function has to be called before printing anything on the screen!!!
  *   INPUTS: none
  *   OUTPUTS: none
  *   RETURN VALUE: none
  *   SIDE EFFECTS: none
  */
 void vt_init(void) {
-    // cli();
     vt_state[cur_vt].screen_x = 0;
     vt_state[cur_vt].screen_y = 0;
     vt_state[cur_vt].video_mem = (char*)VIDEO;
@@ -64,7 +64,6 @@ void vt_init(void) {
     vt_state[cur_vt].kbd.alt = 0;
     vt_state[cur_vt].input_buf_ptr = 0;
     vt_state[cur_vt].enter_pressed = 0;
-    // sti();
 }
 
 /* vt_open
@@ -75,7 +74,7 @@ void vt_init(void) {
  *   SIDE EFFECTS: none
  */
 void vt_open(void) {
-    // Do nothing
+    // Do nothing because everything is done in vt_init()
 }
 
 /* vt_close
@@ -134,6 +133,13 @@ int32_t vt_write(int32_t fd, const void* buf, int32_t nbytes) {
     return i;
 }
 
+/* scroll_page
+ *   DESCRIPTION: Scroll the screen up by one line.
+ *   INPUTS: none
+ *   OUTPUTS: none
+ *   RETURN VALUE: none
+ *   SIDE EFFECTS: video memory is modified
+ */
 static void scroll_page(void) {
     char * video_mem = vt_state[cur_vt].video_mem;
     int i;
@@ -146,6 +152,13 @@ static void scroll_page(void) {
     }
 }
 
+/* print_newline
+ *   DESCRIPTION: Print a newline character on the screen.
+ *   INPUTS: none
+ *   OUTPUTS: none
+ *   RETURN VALUE: none
+ *   SIDE EFFECTS: video memory is modified if scrooling happens
+ */
 static void print_newline(void) {
     vt_state[cur_vt].screen_y++;
     vt_state[cur_vt].screen_x = 0;
@@ -154,7 +167,13 @@ static void print_newline(void) {
         vt_state[cur_vt].screen_y = NUM_ROWS - 1;
     }
 }
-
+/* print_backspace
+ *   DESCRIPTION: Print a backspace character on the screen.
+ *   INPUTS: none
+ *   OUTPUTS: none
+ *   RETURN VALUE: none
+ *   SIDE EFFECTS: video memory is modified
+ */
 static void print_backspace(void) {
     char * video_mem = vt_state[cur_vt].video_mem;
     vt_state[cur_vt].screen_x--;
@@ -170,6 +189,13 @@ static void print_backspace(void) {
     *(uint8_t *)(video_mem + ((NUM_COLS * vt_state[cur_vt].screen_y + vt_state[cur_vt].screen_x) << 1) + 1) = ATTRIB;
 }
 
+/* redraw_cursor
+ *   DESCRIPTION: Redraw the cursor on the screen.
+ *   INPUTS: none
+ *   OUTPUTS: none
+ *   RETURN VALUE: none
+ *   SIDE EFFECTS: video memory is modified
+ */
 static void redraw_cursor(void) {
     uint16_t pos = vt_state[cur_vt].screen_y * NUM_COLS + vt_state[cur_vt].screen_x;
  
@@ -179,7 +205,15 @@ static void redraw_cursor(void) {
 	outb((uint8_t) ((pos >> 8) & 0xFF), 0x3D5);
 }
 
-static void process_char(keycode_t keycode, int release) {
+/* process_default
+ *   DESCRIPTION: Process default cases in vt_keyboard().
+ *   INPUTS: keycode -- keycode of the key pressed
+ *           release -- whether the key is released
+ *   OUTPUTS: none
+ *   RETURN VALUE: none
+ *   SIDE EFFECTS: none
+ */
+static void process_default(keycode_t keycode, int release) {
     // Ignore key releases
     if (release)
         return;
@@ -253,8 +287,11 @@ void vt_keyboard(keycode_t keycode, int release) {
                 vt_state[cur_vt].input_buf[vt_state[cur_vt].input_buf_ptr] = '\0';
             }
             break;
+        case KEY_TAB:
+            process_default(KEY_SPACE, release); // Treat tab as space, easier to implement
+            break;
         default:
-            process_char(keycode, release);
+            process_default(keycode, release);
             break;
     }
 }

@@ -31,3 +31,11 @@
 > 	It took me quite a while to debug through the entire code. I followed the control flow step by step inside `printf()` and in the end I found because I did early return for `\n`, `\r` and `\b`, the interrupt flag is not restored for these two cases.
 > **Solution** 
 > 	The solution is to add `restore_flags(flags)` before `return` in `vt_putc()`.
+
+>[!Bug 5]
+> **Description**
+> When testing the RTC, we write a test case that will print a "1" when an interrupt occurs to test the frequency. We first ran this test case on the debug machine and it works right. But when we ran it on the nondebug machine, the frequency was obviously lower than expected. 
+> **Analysis**
+> We first excluded problems in codes, because if there was any, then the program wouldn't work right in the debug machine. Then > we thought it was because `printf` may works slower on the nondebug machine, so we replaced it with `puts` but the problem was > still there. Finally we found the problem lay in the `target` of the nondebug machine. We added "-d int" to  this machine, and this made the machine record every interrupt, which made qemu simulation very slow.
+> **Solution**
+> We removed "-d int" from the nondebug machine and the test case can be ran correctly.

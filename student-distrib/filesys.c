@@ -200,13 +200,16 @@ int32_t dir_close(uint32_t inode){
  *         buf - the buffer to load the read data
  *         index - meaningless here
  * Outputs: None
- * Return: 0 if successfully, -1 if fails
+ * Return: 1 if read successfully, 0 if reach the end, -1 if fails
  * Side Effects: None
  */
 int32_t dir_read(uint32_t inode, uint8_t* buf, uint32_t index){
     dentry_t dentry;
     /* if buf is null, read fails */
     if(buf == NULL) return -1;
+
+    /* if read reach end, return 0 directly */
+    if(dentry_position == boot_block->dir_entry_num) return 0;
 
     /* read the dentry by index, index is recorded in dentry_position */
     if(read_dentry_by_index(dentry_position, &dentry) == -1) return -1;
@@ -216,7 +219,7 @@ int32_t dir_read(uint32_t inode, uint8_t* buf, uint32_t index){
 
     /* update dentry position */
     dentry_position++;                                          // return -1 if reaches the end
-    return 0;
+    return 1;
 }
 
 /* dir_write

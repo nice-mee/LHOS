@@ -284,14 +284,17 @@ int dir_read_test(){
 	
 	uint32_t i;
 	uint8_t buf[MAX_FILE_NAME];
+	int32_t result;
 
 	dir_open(NULL);
 	if(dir_read(0, NULL, 0) != -1) return FAIL;
 	dir_close(0);
 
 	dir_open(NULL);
-	for(i = 0; i < MAX_FILE_NUM; i++){
-		if(dir_read(0, buf, 0) == -1) return PASS;
+	for(i = 0; i < MAX_FILE_NUM + 1; i++){
+		result = dir_read(0, buf, 0);
+		if(result == -1) return FAIL;
+		if(result == 0) return PASS;
 		printf("The %u dentry has file name ", i);
 		vt_write(1, buf, MAX_FILE_NAME);
 		printf("\n");
@@ -378,17 +381,17 @@ void launch_tests(){
 	// TEST_OUTPUT("deref_ker_mem", deref_ker_mem());
 
 	/* Checkpoint 2 Tests*/
-	TEST_OUTPUT("terminal_read_test", terminal_read_test());
+	// TEST_OUTPUT("terminal_read_test", terminal_read_test());
 	// TEST_OUTPUT("terminal_write_test", terminal_write_test());
-	TEST_OUTPUT("read_dentry_by_index_test", read_dentry_by_index_test(0)); // this one is derictory
-	TEST_OUTPUT("read_dentry_by_index_test", read_dentry_by_index_test(1));	// this one is regular file
-	TEST_OUTPUT("read_dentry_by_index_test", read_dentry_by_index_test(5));	// this one is rtc
+	// TEST_OUTPUT("read_dentry_by_index_test", read_dentry_by_index_test(0)); // this one is derictory
+	// TEST_OUTPUT("read_dentry_by_index_test", read_dentry_by_index_test(1));	// this one is regular file
+	// TEST_OUTPUT("read_dentry_by_index_test", read_dentry_by_index_test(5));	// this one is rtc
 	// TEST_OUTPUT("read_dentry_by_name_test", read_dentry_by_name_test("BYDBYDBYD"));
 	// TEST_OUTPUT("read_dentry_by_name_test", read_dentry_by_name_test("."));
 	// TEST_OUTPUT("read_dentry_by_index_test", read_dentry_by_index_test(10));
 	// TEST_OUTPUT("read_dentry_by_name_test", read_dentry_by_name_test("frame0.txt"));
 	// TEST_OUTPUT("read_dentry_by_name_test", read_dentry_by_name_test("verylargetextwithverylongname.txt"));
-	// TEST_OUTPUT("dir_read_test", dir_read_test());
+	TEST_OUTPUT("dir_read_test", dir_read_test());
 	// TEST_OUTPUT("fread_test", fread_test("frame0.txt"));
 	// TEST_OUTPUT("fread_test", fread_test("verylargetextwithverylongname.txt"));
 	// TEST_OUTPUT("fread_test", fread_test("hello"));

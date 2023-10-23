@@ -7,7 +7,6 @@
 #define NUM_COLS    80
 #define NUM_ROWS    25
 #define ATTRIB      0x7
-#define INPUT_BUF_SIZE 128
 
 static int8_t keycode_to_printable_char[2][128] =
 {
@@ -41,6 +40,7 @@ typedef struct {
     int input_buf_ptr;
     volatile int enter_pressed;
     char user_buf[INPUT_BUF_SIZE]; // Buffer for storing user input after enter is pressed
+    int nbytes_read;
 } vt_state_t;
 
 static vt_state_t vt_state[1];
@@ -111,7 +111,7 @@ int32_t vt_read(int32_t fd, void* buf, int32_t nbytes) {
 
     // Copy user buffer to buf
     int i;
-    for (i = 0; i < nbytes && i < INPUT_BUF_SIZE && vt_state[cur_vt].user_buf[i] != '\0'; i++) {
+    for (i = 0; i < nbytes && i < vt_state[cur_vt].nbytes_read; i++) {
         ((char*)buf)[i] = vt_state[cur_vt].user_buf[i];
     }
     sti();
@@ -121,6 +121,8 @@ int32_t vt_read(int32_t fd, void* buf, int32_t nbytes) {
 
 /* vt_write
  *   DESCRIPTION: Write to virtual terminal.
+ *                This syscall does not recognize '\0' as the end of string.
+ *                It will simply write nbytes bytes to the screen.
  *   INPUTS: fd -- file descriptor
  *           buf -- buffer to write from
  *           nbytes -- number of bytes to write
@@ -186,7 +188,7 @@ static void print_backspace(void) {
     if (vt_state[cur_vt].screen_x < 0) {
         vt_state[cur_vt].screen_x = NUM_COLS - 1;
         vt_state[cur_vt].screen_y--;
-        if (vt_state[cur_vt].screen_y < 0) {
+        if (vt_state[cur_vt].screen_y < 0) { // In theory this should never happen
             vt_state[cur_vt].screen_y = 0;
             vt_state[cur_vt].screen_x = 0;
         }
@@ -228,8 +230,7 @@ static void process_default(keycode_t keycode, int release) {
     // Handle special key combinations
     if (vt_state[cur_vt].kbd.ctrl && keycode == KEY_L) { // Ctrl + L
         clear();
-        vt_state[cur_vt].input_buf_ptr = 0;
-        memset(vt_state[cur_vt].input_buf, '\0', INPUT_BUF_SIZE * sizeof(char));
+        vt_state[cur_vt].input_buf_ptr = 0; // Reset input buffer pointer
         vt_state[cur_vt].screen_x = 0;
         vt_state[cur_vt].screen_y = 0;
         redraw_cursor();
@@ -239,7 +240,7 @@ static void process_default(keycode_t keycode, int release) {
     /* Echo printable characters */
     if (keycode == KEY_RESERVED || keycode > KEY_SPACE) // KEY_SPACE is the last printable character in keycode table
         return;
-    if (vt_state[cur_vt].input_buf_ptr >= INPUT_BUF_SIZE - 1)
+    if (vt_state[cur_vt].input_buf_ptr >= INPUT_BUF_SIZE - 1) // -1 because we need to reserve space for '\n'
         return;
 
     char c;
@@ -281,9 +282,10 @@ void vt_keyboard(keycode_t keycode, int release) {
             if (!release) {
                 vt_putc('\n');
                 vt_state[cur_vt].input_buf[vt_state[cur_vt].input_buf_ptr] = '\n';
-                memcpy(vt_state[cur_vt].user_buf, vt_state[cur_vt].input_buf, INPUT_BUF_SIZE * sizeof(char)); // Copy input buffer to user buffer
+                vt_state[cur_vt].input_buf_ptr++;
+                vt_state[cur_vt].nbytes_read = vt_state[cur_vt].input_buf_ptr; // Store number of bytes read
+                memcpy(vt_state[cur_vt].user_buf, vt_state[cur_vt].input_buf, vt_state[cur_vt].nbytes_read * sizeof(char)); // Copy input buffer to user buffer
                 vt_state[cur_vt].input_buf_ptr = 0; // Reset input buffer pointer
-                memset(vt_state[cur_vt].input_buf, '\0', INPUT_BUF_SIZE * sizeof(char)); // Clear input buffer
                 vt_state[cur_vt].enter_pressed = 1; // Signal read() that enter is pressed
             }
             break;
@@ -291,7 +293,6 @@ void vt_keyboard(keycode_t keycode, int release) {
             if (!release && vt_state[cur_vt].input_buf_ptr > 0) {
                 vt_putc('\b');
                 vt_state[cur_vt].input_buf_ptr--;
-                vt_state[cur_vt].input_buf[vt_state[cur_vt].input_buf_ptr] = '\0';
             }
             break;
         case KEY_TAB:

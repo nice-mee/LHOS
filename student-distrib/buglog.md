@@ -39,3 +39,11 @@
 > We first excluded problems in codes, because if there was any, then the program wouldn't work right in the debug machine. Then > we thought it was because `printf` may works slower on the nondebug machine, so we replaced it with `puts` but the problem was > still there. Finally we found the problem lay in the `target` of the nondebug machine. We added "-d int" to  this machine, and this made the machine record every interrupt, which made qemu simulation very slow.
 > **Solution**
 > We removed "-d int" from the nondebug machine and the test case can be ran correctly.
+
+>[!Bug 6]
+> **Description** 
+> 	The output of test of read file always print content out of the target file. And there is a wired sign after the file name of verylargetextwithverylongname.txt
+> **Analysis** 
+> 	Initially, I thought it was because some sort of overflow. But after I take a deep look at the file and the definition of printf. I find that printf will keep printing until it encounts '\0'. So it need to be changed to vt_write();
+> **Solution** 
+> 	The solution is to change the function printf() to vt_write() in `tests.c`.

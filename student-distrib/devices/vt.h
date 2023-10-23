@@ -3,6 +3,8 @@
 #include "keyboard.h"
 #include "../lib.h"
 
+#define INPUT_BUF_SIZE 128
+
 extern void vt_init();
 extern void vt_open();
 extern void vt_close();

@@ -213,12 +213,14 @@ int deref_ker_mem() {
 int terminal_read_test() {
 	TEST_HEADER;
 
-	char buf[128];
+	char buf[INPUT_BUF_SIZE + 1]; // +1 for '\0'
+	char mem_fence[26] = "This shall not be printed\n";
+	(void) mem_fence; // to avoid warning
 	int i;
 	for (i = 0; i < 4; i++) {
-		memset(buf, '\0', 128);
 		printf("Please enter something:");
-		int32_t ret = vt_read(0, buf, 128);
+		int32_t ret = vt_read(0, buf, INPUT_BUF_SIZE);
+		buf[ret] = '\0'; // add '\0' to the end of the string
 		printf("Content of input      :%s", buf);
 		printf("Return value: %d\n", ret);
 	}
@@ -362,6 +364,7 @@ int RTC_change_freq() {
 
 /* Test suite entry point */
 void launch_tests(){
+	/* Checkpoint 1 Tests*/
 	// TEST_OUTPUT("idt_test", idt_test());
 	// TEST_OUTPUT("div_by_zero", div_by_zero());
 	// TEST_OUTPUT("invalid_opcode", invalid_opcode());
@@ -373,10 +376,10 @@ void launch_tests(){
 	// TEST_OUTPUT("deref_ker_mem_lowerbound", deref_ker_mem_lowerbound())
 	// TEST_OUTPUT("deref_video_mem", deref_video_mem());
 	// TEST_OUTPUT("deref_ker_mem", deref_ker_mem());
-	// TEST_OUTPUT("terminal_read_test", terminal_read_test());
-	// TEST_OUTPUT("terminal_write_test", terminal_write_test());
 
-	// launch your tests here
+	/* Checkpoint 2 Tests*/
+	TEST_OUTPUT("terminal_read_test", terminal_read_test());
+	// TEST_OUTPUT("terminal_write_test", terminal_write_test());
 	TEST_OUTPUT("read_dentry_by_index_test", read_dentry_by_index_test(0)); // this one is derictory
 	TEST_OUTPUT("read_dentry_by_index_test", read_dentry_by_index_test(1));	// this one is regular file
 	TEST_OUTPUT("read_dentry_by_index_test", read_dentry_by_index_test(5));	// this one is rtc
@@ -389,5 +392,5 @@ void launch_tests(){
 	// TEST_OUTPUT("fread_test", fread_test("frame0.txt"));
 	// TEST_OUTPUT("fread_test", fread_test("verylargetextwithverylongname.txt"));
 	// TEST_OUTPUT("fread_test", fread_test("hello"));
-	TEST_OUTPUT("RTC_change_freq", RTC_change_freq());
+	// TEST_OUTPUT("RTC_change_freq", RTC_change_freq());
 }

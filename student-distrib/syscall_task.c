@@ -1,10 +1,4 @@
-#include "pcb.h"
-#include <string.h>
-
-#define FILE_NAME_LEN 32  // 32B to store file name in FS
-#define ARG_LEN     128
-#define MAX_ARG_NUM 24
-#define INVALID_CMD -1
+#include "syscall_task.h"
 
 static int32_t parse_args(const uint8_t* command, uint8_t* args)
 {
@@ -95,8 +89,24 @@ int32_t __syscall_execute(const uint8_t* command) {
     }
 
     // Executable check
+
+    // set a new dentry for the file
+    dentry_t cur_dentry;
     
-    
+    // find the dentry for the file according to its name
+    if (-1 == read_dentry_by_name(filename, cur_dentry)) {
+        return INVALID_CMD; // the filename is invalid
+    }
+
+    int8_t magic_num_buf[MAGIC_NUMBERS_NUM];
+    if (-1 == read_data(cur_dentry.inodes_num, 0, magic_num_buf, MAGIC_NUMBERS_NUM)) {
+        return INVALID_CMD; // read data fail
+    }
+
+    if(magic_num_buf[0] != MAGIC_NUM_1 || magic_num_buf[1] != MAGIC_NUM_2 ||
+       magic_num_buf[2] != MAGIC_NUM_3 || magic_num_buf[3] != MAGIC_NUM_4) {
+        return INVALID_CMD; // file not executable
+    }
     // Set up program paging
 
     // User-level Program Loader

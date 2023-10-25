@@ -12,6 +12,6 @@ typedef struct {
 extern pcb_t* get_pcb_by_pid(uint32_t pid);
 extern pcb_t* get_current_pcb();
 
-extern int32_t* get_current_pid();
+extern int32_t get_current_pid();
 
 #endif /* _PCB_H */

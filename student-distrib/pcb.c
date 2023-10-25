@@ -1,9 +1,5 @@
 #include "pcb.h"
 
-#define EIGHT_MB 0x800000
-#define EIGHT_KB 0x2000
-#define EIGHT_KB_MASK 0xFFFFE000
-
 /* get_pcb_by_pid - get the pcb by pid
  * Inputs: pid - the given pid
  * Outputs: the pcb with the given pid

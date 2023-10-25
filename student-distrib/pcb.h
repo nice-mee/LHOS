@@ -9,4 +9,9 @@ typedef struct {
     file_descriptor_t fd_array[NUM_FILES];
 } pcb_t;
 
+extern pcb_t* get_pcb_by_pid(uint32_t pid);
+extern pcb_t* get_current_pcb();
+
+extern int32_t* get_current_pid();
+
 #endif /* _PCB_H */

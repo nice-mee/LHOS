@@ -3,6 +3,7 @@
 #include "lib.h"
 #include "devices/rtc.h"
 #include "filesys.h"
+#include "pcb.h"
 
 #define PASS 1
 #define FAIL 0
@@ -361,6 +362,17 @@ int RTC_change_freq() {
 	return PASS;
 }
 /* Checkpoint 3 tests */
+
+int pcb_tests() {
+	int32_t pid = get_current_pid();
+	pcb_t* pcb = get_current_pcb();
+	printf("pid: %d\n", pid);
+	printf("pcb: %x\n", pcb);
+	if (pid != 0) return FAIL;
+	if (pcb != (pcb_t*)0x7FE000) return FAIL;
+	return PASS;
+}
+
 /* Checkpoint 4 tests */
 /* Checkpoint 5 tests */
 
@@ -396,4 +408,5 @@ void launch_tests(){
 	// TEST_OUTPUT("fread_test", fread_test("verylargetextwithverylongname.txt"));
 	// TEST_OUTPUT("fread_test", fread_test("hello"));
 	// TEST_OUTPUT("RTC_change_freq", RTC_change_freq());
+	TEST_OUTPUT("pcb_tests", pcb_tests());
 }

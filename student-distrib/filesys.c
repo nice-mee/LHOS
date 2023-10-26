@@ -5,6 +5,7 @@
 #include "lib.h"
 #include "x86_desc.h"
 #include "filesys.h"
+#include "pcb.h"
 
 
 /* global variables for file system */
@@ -12,10 +13,6 @@ boot_block_t* boot_block;
 dentry_t* dentries;
 inode_t* inodes;
 data_block_t* datablocks;
-uint32_t dentry_position = 0;   // used to track the read position for dir_read
-uint32_t file_position = 0;     // used to track the read position for fread
-uint32_t cur_file_inode = 0;    // initialized after fopen
-uint32_t file_end = 0;
 
 /* filesys_init
  *
@@ -44,7 +41,7 @@ void filesys_init(boot_block_t* in_memory_boot_block){
 int32_t read_dentry_by_name(const uint8_t* fname, dentry_t* dentry){
     uint32_t i;
     /* fail if fname invalid */
-    if(fname == NULL) return -1;
+    if(fname == NULL || strlen((int8_t*)fname) > MAX_FILE_NAME) return -1;      // suggested by checkpoint 2, fail if fname too large
 
     /* fail if dentry is invalid */
     if(dentry == NULL) return -1;
@@ -119,7 +116,6 @@ int32_t read_data(uint32_t inode, uint32_t offset, uint8_t* buf, uint32_t length
 
     /* check if read will touch the end of the file */
     if(length + offset > inodes[inode].length){
-        file_end = 1;
         length = inodes[inode].length - offset;
     }
 
@@ -170,138 +166,208 @@ int32_t read_data(uint32_t inode, uint32_t offset, uint8_t* buf, uint32_t length
 
 /* dir_open
  *
- * open a directory
- * Inputs: fname - the name of directory to be open
+ * open a directory if the fd_array has empty sapce and initialize it
+ * Inputs: id - meaningless
  * Outputs: none
- * Return: 0 if successfully, -1 if open fails
+ * Return: 0 if successfully, -1 if fail
  * Side Effects: None
  */
-int32_t dir_open(const uint8_t* fname){
-    dentry_position = 0;
-    return 0;       // as directory always here
+int32_t dir_open(const uint8_t* id){
+    int32_t i;
+    pcb_t* cur_pcb = get_current_pcb();
+    file_descriptor_t* cur_fd;
+    for(i = 0; i < NUM_FILES; i++){
+        cur_fd = &(cur_pcb->fd_array[i]);
+        if(cur_fd->flags == READY_TO_BE_USED){
+            /* if there exists empty file descriptor, assign it */
+            cur_fd->operation_table->open_operation = dir_open;
+            cur_fd->operation_table->close_operation = dir_close;
+            cur_fd->operation_table->read_operation = dir_read;
+            cur_fd->operation_table->write_operation = dir_write;
+            cur_fd->inode_index = 0;
+            cur_fd->file_position = 0;
+            cur_fd->flags = IN_USE;
+            return 0;
+        }
+    }
+    return -1;  // if no empty, open fail
 }
 
 /* dir_close
  *
- * close a directory
- * Inputs: inode - the file associated with inode to be closed
+ * close a directory and free that file descriptor
+ * Inputs: id - the file descriptor to be closed
  * Outputs: None
  * Return: 0 if successfully, -1 if fails
  * Side Effects: None
  */
-int32_t dir_close(uint32_t inode){
-    return 0;       // nothing to do here
+int32_t dir_close(int32_t id){
+    pcb_t* cur_pcb = get_current_pcb();
+    file_descriptor_t* cur_fd;
+    /* if if out of boundary, close fail */
+    if(id < 0 || id >= NUM_FILES) return -1;
+
+    cur_fd = &(cur_pcb->fd_array[id]);
+    /* if that id is invalid, close fail */
+    if(cur_fd->flags != IN_USE || cur_fd->inode_index != 0) return -1;
+
+    /* free that file descriptor if every thing all right */
+    cur_fd->flags == READY_TO_BE_USED;
+    return 0;
 }
 
 /* dir_read
  *
  * read the directory
- * Inputs: inode - meaningless here
+ * Inputs: fd - meaningless here
  *         buf - the buffer to load the read data
- *         index - meaningless here
+ *         nbytes - meaningless here
  * Outputs: None
  * Return: 1 if read successfully, 0 if reach the end, -1 if fails
  * Side Effects: None
  */
-int32_t dir_read(uint32_t inode, uint8_t* buf, uint32_t index){
+int32_t dir_read(int32_t fd, void* buf, int32_t nbytes){
     dentry_t dentry;
-    /* if buf is null, read fails */
-    if(buf == NULL) return -1;
+    pcb_t* cur_pcb = get_current_pcb();
+    file_descriptor_t* cur_fd;
+    /* if buf is null or fd is invalid, read fails */
+    if(buf == NULL || fd < 0 || fd >= NUM_FILES) return -1;
 
+    cur_fd = &(cur_pcb->fd_array[fd]);
     /* if read reach end, return 0 directly */
-    if(dentry_position == boot_block->dir_entry_num) return 0;
+    if(cur_fd->file_position == boot_block->dir_entry_num) return 0;
 
-    /* read the dentry by index, index is recorded in dentry_position */
-    if(read_dentry_by_index(dentry_position, &dentry) == -1) return -1;
+    /* read the dentry by index, index is recorded in file_position */
+    if(read_dentry_by_index(cur_fd->file_position, &dentry) == -1) return -1;
 
     /* then copy the target dentry's file name into the buffer */
     memcpy(buf, dentry.file_name, MAX_FILE_NAME);
 
     /* update dentry position */
-    dentry_position++;                                          // return -1 if reaches the end
+    cur_fd->file_position++;
+
     return 1;
 }
 
 /* dir_write
  *
- * not been implemented yet (checkpoint 3)
- * Inputs:
- * Outputs:
- * Return:
- * Side Effects:
+ * not been implemented yet
+ * Inputs: fd - directory associated with file descriptor to be wrote
+ *         buf - the buffer holding the content to write
+ *         nbytes - the length of bytes to write
+ * Outputs: None
+ * Return: -1 as not implemented
+ * Side Effects: None
  */
-int32_t dir_write(uint32_t inode, const uint8_t* buf, uint32_t count){
+int32_t dir_write(int32_t fd, const void* buf, int32_t nbytes){
     return -1;
 }
 
 
 /* fopen
  *
- * open a file
- * Inputs: fname - the name of a file to be open
+ * open a file if there exists empty in fd_array, then assign file descriptor to fd_array
+ * Inputs: fname - the name of file to be opened
  * Outputs: none
- * Return: 0 if successfully, -1 otherwise
+ * Return: 0 if successfully, -1 if open fails
  * Side Effects: None
  */
 int32_t fopen(const uint8_t* fname){
+    int32_t i;
+    pcb_t* cur_pcb = get_current_pcb();
+    file_descriptor_t* cur_fd;
     dentry_t dentry;
-    /* check if file exists, only check FILE_MAX_NAME size */
+
+    /* check if the file exists first */
     if(read_dentry_by_name(fname, &dentry) == -1) return -1;
+    /* if this is not a regular file, open fail */
     if(dentry.file_type != REGULAR_FILE_TYPE) return -1;
 
-    /* initialize variable */
-    cur_file_inode = dentry.inode_index;
-    file_position = 0;
-    file_end = 0;
-    return 0;
+    for(i = 0; i < NUM_FILES; i++){
+        cur_fd = &(cur_pcb->fd_array[i]);
+        if(cur_fd->flags == READY_TO_BE_USED){
+            /* if there exists empty file descriptor, assign it */
+            cur_fd->operation_table->open_operation = fopen;
+            cur_fd->operation_table->close_operation = fclose;
+            cur_fd->operation_table->read_operation = fread;
+            cur_fd->operation_table->write_operation = fwrite;
+            cur_fd->inode_index = dentry.inode_index;
+            cur_fd->file_position = 0;
+            cur_fd->flags = IN_USE;
+            return 0;
+        }
+    }
+    return -1;  // if no empty, open fail
 }
 
 /* fclose
  *
- * close the file associated with inode
- * Inputs: inode - the file associated with inode to be closed
+ * close a file and free that file descriptor
+ * Inputs: fd - the file associated with inode to be closed
  * Outputs: None
  * Return: 0 if successfully, -1 if fails
- * Side Effects:
+ * Side Effects: None
  */
-int32_t fclose(uint32_t inode){
-    return 0;   // nothing to do here
+int32_t fclose(int32_t fd){
+    pcb_t* cur_pcb = get_current_pcb();
+    file_descriptor_t* cur_fd;
+    /* if if out of boundary, close fail */
+    if(fd < 0 || fd >= NUM_FILES) return -1;
+
+    cur_fd = &(cur_pcb->fd_array[fd]);
+    /* if that id is invalid, close fail */
+    if(cur_fd->flags != IN_USE) return -1;
+
+    /* free that file descriptor if every thing all right */
+    cur_fd->flags == READY_TO_BE_USED;
+    return 0;
 }
 
 /* fread
  *
  * read the file
- * Inputs: inode - meaningless here
+ * Inputs: fd - file associated with file descriptor to be read
  *         buf - the buffer to load the read data
- *         count - the length of bytes to be read
+ *         nbytes - the length of bytes to be read
  * Outputs: None
- * Return: 0 if successful, -1 if fails
+ * Return: number of bytes read if successful, 0 if reach the end, -1 if fails
  * Side Effects: None
  */
-int32_t fread(uint32_t inode, uint8_t* buf, uint32_t count){
+int32_t fread(int32_t fd, void* buf, int32_t nbytes){
+    dentry_t dentry;
     uint32_t bytes_read;
-    /* if inode out of boundary or buf is NULL, return -1 to indicate failure */
-    if(cur_file_inode >= boot_block->inodes_num || buf == NULL) return -1;
+    pcb_t* cur_pcb = get_current_pcb();
+    file_descriptor_t* cur_fd;
+    /* if buf is null or fd is invalid or nbytes is invalid, read fails */
+    if(buf == NULL || fd < 0 || fd >= NUM_FILES || nbytes < 0) return -1;
 
-    /* read the data starting at the file_position */
-    bytes_read = read_data(cur_file_inode, file_position, buf, count);
-    if(bytes_read == -1) return -1; // indicate reads fail
-    if(file_end == 1){
-        file_position = inodes[cur_file_inode].length;       // file end has been reached
+    cur_fd = &(cur_pcb->fd_array[fd]);
+    /* read the file starting at the file_position */
+    bytes_read = read_data(cur_fd->inode_index, cur_fd->file_position, buf, nbytes);
+
+    /* if reach the end, return 0*/
+    if(bytes_read == 0) return 0;
+    
+    /* else, need to update file_position */
+    if(bytes_read < nbytes){
+        cur_fd->file_position = inodes[cur_fd->inode_index].length;       // file end has been reached
     } else {
-        file_position += count;        // update file_position
+        cur_fd->file_position += nbytes;
     }
-    return 0;
+
+    return bytes_read;
 }
 
 /* fwrite
  *
- * not been implemented yet (checkpoint 3)
- * Inputs:
- * Outputs:
- * Return:
- * Side Effects:
+ * not been implemented yet
+ * Inputs: fd - file associated with file descriptor to be wrote
+ *         buf - the buffer holding the content to write
+ *         nbytes - the length of bytes to write
+ * Outputs: None
+ * Return: -1 as not implemented
+ * Side Effects: None
  */
-int32_t fwrite(uint32_t inode, const uint8_t* buf, uint32_t count){
+int32_t fwrite(int32_t fd, const void* buf, int32_t nbytes){
     return -1;
 }

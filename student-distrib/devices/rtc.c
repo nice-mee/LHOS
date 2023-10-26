@@ -1,6 +1,8 @@
 #include "rtc.h"
 #include "../lib.h"
 #include "../i8259.h"
+#include "../filesys.h"
+#include "../pcb.h"
 
 uint32_t rtc_time_counter;
 
@@ -70,19 +72,37 @@ void __intr_RTC_handler(void) {
 /* 
  * Function: RTC_open
  * Description: Initializes the RTC interrupt handler for a specific process, 
- * setting the RTC frequency to 2Hz and validating the process's ID.
+ * setting the RTC frequency to 2Hz and validating the process's ID if the fd_array
+ * has empty space
  * Parameters:
  *    proc_id: id of the process
- * Returns: 0 for success
+ * Returns: 0 for success, -1 for failure
  * Side Effects: 1. sets the RTC frequency for the process to 2Hz
  *               2. validates the process's id
  */
-int32_t RTC_open(int32_t proc_id) {
-    /* set process's freq and existence status */
-    RTC_proc_list[proc_id].proc_freq = 2;
-    RTC_proc_list[proc_id].proc_count = RTC_BASE_FREQ / 2; 
-    RTC_proc_list[proc_id].proc_exist = 1;
-    return 0;
+int32_t RTC_open(const uint8_t* proc_id) {
+    int32_t i;
+    pcb_t* cur_pcb = get_current_pcb();
+    file_descriptor_t* cur_fd;
+    for(i = 0; i < NUM_FILES; i++){
+        cur_fd = &(cur_pcb->fd_array[i]);
+        if(cur_fd->flags == READY_TO_BE_USED){
+            /* if there exists empty file descriptor, assign it */
+            cur_fd->operation_table->open_operation = RTC_open;
+            cur_fd->operation_table->close_operation = RTC_close;
+            cur_fd->operation_table->read_operation = RTC_read;
+            cur_fd->operation_table->write_operation = RTC_write;
+            cur_fd->inode_index = 0;
+            cur_fd->file_position = 0;
+            cur_fd->flags = IN_USE;
+            /* set process's freq and existence status */
+            RTC_proc_list[*proc_id].proc_freq = 2;
+            RTC_proc_list[*proc_id].proc_count = RTC_BASE_FREQ / 2; 
+            RTC_proc_list[*proc_id].proc_exist = 1;
+            return 0;
+        }
+    }
+    return -1;  // if no empty, open fail
 }
 
 /* 
@@ -91,10 +111,21 @@ int32_t RTC_open(int32_t proc_id) {
  * marking its id as invalid.
  * Parameters:
  *    proc_id: id of the process
- * Returns: 0 for success
+ * Returns: 0 for success, -1 for failure
  * Side Effects: set the process's id invalid
  */
 int32_t RTC_close(int32_t proc_id) {
+    pcb_t* cur_pcb = get_current_pcb();
+    file_descriptor_t* cur_fd;
+    /* if if out of boundary, close fail */
+    if(proc_id < 0 || proc_id >= NUM_FILES) return -1;
+
+    cur_fd = &(cur_pcb->fd_array[proc_id]);
+    /* if that id is invalid, close fail */
+    if(cur_fd->flags != IN_USE || cur_fd->inode_index != 0) return -1;
+
+    /* free that file descriptor if every thing all right */
+    cur_fd->flags == READY_TO_BE_USED;
     /* invalidate the process's existence status */
     RTC_proc_list[proc_id].proc_exist = 0;
     return 0;
@@ -104,14 +135,17 @@ int32_t RTC_close(int32_t proc_id) {
  * Function: RTC_read
  * Description: block until the next interrupt occurs for the process
  * Parameters:
+ *    proc_id: id of the process
  *    buf: ignored
  *    nbytes: ignored
- *    proc_id: id of the process
  * Returns:
  *    0 for success
  * Side Effects: block until the next interrupt occurs for the process
  */
-int32_t RTC_read(void* buf, int32_t nbytes, int32_t proc_id) {
+int32_t RTC_read(int32_t proc_id, void* buf, int32_t nbytes) {
+    /* if proc_id out of boundary, read fails */
+    if(proc_id < 0 || proc_id >= MAX_PROC_NUM) return -1;
+
     /* virtualization: wait counter reaches zero */
     while(RTC_proc_list[proc_id].proc_count > 0);
     /* reset counter */
@@ -126,15 +160,19 @@ int32_t RTC_read(void* buf, int32_t nbytes, int32_t proc_id) {
  * Function: RTC_write
  * Description: adjusts the RTC frequency for a specific process
  * Parameters:
+ *    proc_id: Identifier ID of the process
  *    buf: ptr to the value of the intended frequency
  *    nbytes: ignored
- *    proc_id: Identifier ID of the process
  * Returns:
  *    0 for success, -1 for invalid arguments
  * Side Effects: adjusts the freq for the process
  */
-int32_t RTC_write(void* buf, int32_t nbytes, int32_t proc_id) {
-    uint32_t freq = *(uint32_t*) buf;
+int32_t RTC_write(int32_t proc_id, const void* buf, int32_t nbytes) {
+    uint32_t freq;
+    /* if buf is NULL or proc_id out of boundary, write fails */
+    if(proc_id < 0 || proc_id >= MAX_PROC_NUM || buf == NULL) return -1;
+    
+    freq = *(uint32_t*) buf;
     /* ensuring freq is a power of 2 and within acceptable limits */
     if(!(freq && !(freq & (freq - 1))) || freq > 1024) {
         return -1;

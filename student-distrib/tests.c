@@ -350,10 +350,10 @@ int RTC_change_freq() {
 	int32_t i;
 	while(freq <= RTC_BASE_FREQ) {
 		printf("current freq:%d\n", freq);
-		RTC_write(&freq, 4, 0); // let pid = 0
+		RTC_write(0, &freq, 4); // let pid = 0
 		
 		for (i = 0; i < freq; ++i) {
-			RTC_read(NULL, 0, 0); 
+			RTC_read(0, NULL, 0); 
 			printf("1");
 		}
 		freq *= 2; //change to next rate

@@ -68,13 +68,14 @@ void vt_init(void) {
 
 /* vt_open
  *   DESCRIPTION: Open virtual terminal.
- *   INPUTS: none
+ *   INPUTS: id - meaningless 
  *   OUTPUTS: none
- *   RETURN VALUE: none
+ *   RETURN VALUE: 0 if successful
  *   SIDE EFFECTS: none
  */
-void vt_open(void) {
+int32_t vt_open(const uint8_t* id) {                        // return 0 as required by checkpoint 2 demo
     // Do nothing because everything is done in vt_init()
+    return 0;
 }
 
 /* vt_close
@@ -84,8 +85,9 @@ void vt_open(void) {
  *   RETURN VALUE: none
  *   SIDE EFFECTS: none
  */
-void vt_close(void) {
+int32_t vt_close(int32_t id) {                              // return 0 as required by checkpoint 2 demo
     // Do nothing
+    return 0;
 }
 
 /* vt_read

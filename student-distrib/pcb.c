@@ -1,5 +1,7 @@
 #include "pcb.h"
 
+static int32_t pid_occupied[MAX_PID_NUM] = {0,};
+
 /* get_pcb_by_pid - get the pcb by pid
  * Inputs: pid - the given pid
  * Outputs: the pcb with the given pid
@@ -32,4 +34,35 @@ int32_t get_current_pid()
     uint32_t esp;
     asm volatile("movl %%esp, %0" : "=r"(esp));
     return (EIGHT_MB - esp) / EIGHT_KB;
+}
+
+/* get_available_pid - get the available pid
+ * Inputs: None
+ * Outputs: the available pid
+ * Side Effects: None
+ */
+int32_t get_available_pid()
+{
+    for (int32_t i = 0; i < MAX_PID_NUM; i++) {
+        if (pid_occupied[i] == 0) {
+            pid_occupied[i] = 1;
+            return i;
+        }
+    }
+    // No pid available
+    return -1;
+}
+
+/* free_pid - free the pid
+ * Inputs: pid - the given pid
+ * Outputs: 0 if success, -1 if fail
+ * Side Effects: None
+ */
+int32_t free_pid(int32_t pid)
+{
+    if (pid < 0 || pid >= MAX_PID_NUM) {
+        return -1;
+    }
+    pid_occupied[pid] = 0;
+    return 0;
 }

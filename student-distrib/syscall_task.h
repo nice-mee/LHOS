@@ -45,6 +45,8 @@ int32_t __syscall_halt(uint8_t status);
 
 int32_t __syscall_open(const uint8_t* filename);
 int32_t __syscall_close(int32_t fd);
+int32_t __syscall_read(int32_t fd, void* buf, int32_t nbytes);
+int32_t __syscall_write(int32_t fd, const void* buf, int32_t nbytes);
 
 
 #endif

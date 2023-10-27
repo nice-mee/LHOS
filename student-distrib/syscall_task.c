@@ -267,3 +267,38 @@ int32_t __syscall_close(int32_t fd){
     cur_pcb->fd_array[fd].operation_table->close_operation(fd);
     return 0;
 }
+
+/* __syscall_read - read the file
+ * Inputs: fd - the file associated with file descriptor to be read
+           buf - the buffer to load the reading content
+           nbytes - the length of bytes to be read
+ * Outputs: None
+ * Return:  number of bytes read if successfully
+ *          0 if file reach the end
+ *          -1 if read fails
+ * Side Effects: This call should never return to the caller
+ */
+int32_t __syscall_read(int32_t fd, void* buf, int32_t nbytes){
+    /* input being checked in read operation */
+    /* increment of file_position is handled in read_operation */
+    return get_current_pcb()->fd_array[fd].operation_table->read_operation(fd, buf, nbytes);
+}
+
+/* __syscall_read - write the file
+ * Inputs: fd - the file associated with file descriptor to be wrote
+           buf - the buffer hold the writing content
+           nbytes - the length of bytes to be wrote
+ * Outputs: None
+ * Return:  number of bytes read if successfully
+ *          0 if file reach the end
+ *          -1 if read fails
+ * Side Effects: This call should never return to the caller
+ */
+int32_t __syscall_write(int32_t fd, const void* buf, int32_t nbytes){
+    pcb_t* cur_pcb = get_current_pcb();
+    /* if fd out of boundary or buf or nbytes is incalid, read fails */
+    if(fd < 0 || fd >= NUM_FILES || buf == NULL || nbytes < 0) return -1;
+
+    /* increment of file_position is handled in write_operation */
+    return cur_pcb->fd_array[fd].operation_table->write_operation(fd, buf, nbytes);
+}

@@ -227,20 +227,33 @@ int32_t __syscall_halt(uint8_t status) {
     return 0; // This return serves no purpose other than to silence the compiler
 }
 
+/* __syscall_open - open the file
+ * Inputs: filename - the name of the file to be opened
+ * Outputs: None
+ * Return: file descriptor if successfully
+ *        -1 if open fails
+ * Side Effects: This call should never return to the caller
+ */
 int32_t __syscall_open(const uint8_t* filename){
     dentry_t *cur_dentry;
+    // find the dentry for the file according to its name
+    // if the file does not exist, open fails
     if(0 != read_dentry_by_name(filename, &cur_dentry))
         return -1;
     pcb_t* cur_pcb = get_current_pcb();
     int32_t fd;
+    // find the first available file descriptor
     for(fd = 0; fd < NUM_FILES; fd++)
         if(cur_pcb->fd_array[fd].flags == 0)
             break;
+    // if no available file descriptor, open fails
     if(fd == NUM_FILES)
         return -1;
+    // set up the file descriptor
     cur_pcb->fd_array[fd].flags = 1;
     cur_pcb->fd_array[fd].inode_index = cur_dentry->inode_index;
     cur_pcb->fd_array[fd].file_position = 0;
+    // set up the operation table according to the file type
     if(cur_dentry->file_type == 0)
         cur_pcb->fd_array[fd].operation_table = &rtc_operation_table;
     else if(cur_dentry->file_type == 1)
@@ -251,16 +264,25 @@ int32_t __syscall_open(const uint8_t* filename){
         cur_pcb->fd_array[fd].flags = 0;
         return -1;
     }
+    // call the open operation
     cur_pcb->fd_array[fd].operation_table->open_operation(filename);
     return fd;
 }
 
+/* __syscall_close - close the file
+ * Inputs: fd - the file associated with file descriptor to be closed
+ * Outputs: None
+ * Return: 0 if successfully, -1 if close fails
+ * Side Effects: This call should never return to the caller
+ */
 int32_t __syscall_close(int32_t fd){
+    // if fd out of boundary or fd is stdin or stdout, close fails
     if(fd >= NUM_FILES || fd < 2)
         return -1;
     pcb_t* cur_pcb = get_current_pcb();
     if(cur_pcb->fd_array[fd].flags == 0)
         return -1;
+    // close the file and reset the file descriptor
     cur_pcb->fd_array[fd].flags = 0;
     cur_pcb->fd_array[fd].inode_index = 0;
     cur_pcb->fd_array[fd].file_position = 0;

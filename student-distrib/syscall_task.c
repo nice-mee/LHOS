@@ -226,3 +226,44 @@ int32_t __syscall_halt(uint8_t status) {
     );
     return 0; // This return serves no purpose other than to silence the compiler
 }
+
+int32_t __syscall_open(const uint8_t* filename){
+    dentry_t *cur_dentry;
+    if(0 != read_dentry_by_name(filename, &cur_dentry))
+        return -1;
+    pcb_t* cur_pcb = get_current_pcb();
+    int32_t fd;
+    for(fd = 0; fd < NUM_FILES; fd++)
+        if(cur_pcb->fd_array[fd].flags == 0)
+            break;
+    if(fd == NUM_FILES)
+        return -1;
+    cur_pcb->fd_array[fd].flags = 1;
+    cur_pcb->fd_array[fd].inode_index = cur_dentry->inode_index;
+    cur_pcb->fd_array[fd].file_position = 0;
+    if(cur_dentry->file_type == 0)
+        cur_pcb->fd_array[fd].operation_table = &rtc_operation_table;
+    else if(cur_dentry->file_type == 1)
+        cur_pcb->fd_array[fd].operation_table = &dir_operation_table;
+    else if(cur_dentry->file_type == 2)
+        cur_pcb->fd_array[fd].operation_table = &file_operation_table;
+    else{
+        cur_pcb->fd_array[fd].flags = 0;
+        return -1;
+    }
+    cur_pcb->fd_array[fd].operation_table->open_operation(filename);
+    return fd;
+}
+
+int32_t __syscall_close(int32_t fd){
+    if(fd >= NUM_FILES || fd < 2)
+        return -1;
+    pcb_t* cur_pcb = get_current_pcb();
+    if(cur_pcb->fd_array[fd].flags == 0)
+        return -1;
+    cur_pcb->fd_array[fd].flags = 0;
+    cur_pcb->fd_array[fd].inode_index = 0;
+    cur_pcb->fd_array[fd].file_position = 0;
+    cur_pcb->fd_array[fd].operation_table->close_operation(fd);
+    return 0;
+}

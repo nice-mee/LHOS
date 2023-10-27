@@ -3,6 +3,7 @@
 
 #include "filesys.h"
 #include "pcb.h"
+#include "devices/rtc.h"
 #include <string.h>
 
 #define FILE_NAME_LEN 32  // 32B to store file name in FS
@@ -17,9 +18,33 @@
 #define MAGIC_NUM_3 0x4c
 #define MAGIC_NUM_4 0x46
 
+operation_table_t rtc_operation_table = {
+    .open_operation = RTC_open,
+    .close_operation = RTC_close,
+    .read_operation = RTC_read,
+    .write_operation = RTC_write
+};
+
+operation_table_t dir_operation_table = {
+    .open_operation = dir_open,
+    .close_operation = dir_close,
+    .read_operation = dir_read,
+    .write_operation = dir_write
+};
+
+operation_table_t file_operation_table = {
+    .open_operation = fopen,
+    .close_operation = fclose,
+    .read_operation = fread,
+    .write_operation = fwrite
+};
+
 static int32_t parse_args(const uint8_t* command, uint8_t* args);
 int32_t __syscall_execute(const uint8_t* command);
+int32_t __syscall_halt(uint8_t status);
 
+int32_t __syscall_open(const uint8_t* filename);
+int32_t __syscall_close(int32_t fd);
 
 
 #endif

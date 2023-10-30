@@ -27,9 +27,9 @@ void RTC_init(void);
 /* deal with rtc interrupts*/
 void __intr_RTC_handler(void);
 /* for checkpoint2 */
-int32_t RTC_open(int32_t proc_id);
+int32_t RTC_open(const uint8_t* proc_id);
 int32_t RTC_close(int32_t proc_id);
-int32_t RTC_read(void* buf, int32_t nbytes, int32_t proc_id);
-int32_t RTC_write(void* buf, int32_t nbytes, int32_t proc_id);
+int32_t RTC_read(int32_t proc_id, void* buf, int32_t nbytes);
+int32_t RTC_write(int32_t proc_id, const void* buf, int32_t nbytes);
 
 #endif /* _RTC_H_ */

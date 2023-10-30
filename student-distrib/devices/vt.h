@@ -7,8 +7,8 @@
 #define INPUT_BUF_SIZE 128
 
 extern void vt_init();
-extern void vt_open();
-extern void vt_close();
+extern int32_t vt_open(const uint8_t* id);
+extern int32_t vt_close(int32_t id);
 extern int32_t vt_read(int32_t fd, void* buf, int32_t nbytes);
 extern int32_t vt_write(int32_t fd, const void* buf, int32_t nbytes);
 extern void vt_keyboard(keycode_t keycode, int release);

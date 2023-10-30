@@ -98,7 +98,7 @@ static int32_t program_loader(uint32_t inode_index, uint32_t* program_entry_poin
 {
     if (-1 == read_data(inode_index, 0, (uint8_t *)EXECUTABLE_START, USER_STACK_START - EXECUTABLE_START)) // This is a little tricky, USER_STACK_START is the end of 4MB page, so we can use it as the end of the loaded program
         return -1;
-    *program_entry_point = ((uint32_t *)EXECUTABLE_START)[24]; // 24 is the offset of the entry point in the header
+    *program_entry_point = *((uint32_t *)(EXECUTABLE_START + 24)); // 24 is the offset of the entry point in the header
     return 0;
 }
 

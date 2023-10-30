@@ -9,7 +9,7 @@ static int32_t pid_occupied[MAX_PID_NUM] = {0,};
  */
 pcb_t* get_pcb_by_pid(uint32_t pid)
 {
-    return EIGHT_MB - (pid + 1) * EIGHT_KB;
+    return (pcb_t *)(EIGHT_MB - (pid + 1) * EIGHT_KB);
 }
 
 /* get_current_pcb - get the current pcb
@@ -43,7 +43,8 @@ int32_t get_current_pid()
  */
 int32_t get_available_pid()
 {
-    for (int32_t i = 0; i < MAX_PID_NUM; i++) {
+    int32_t i;
+    for (i = 0; i < MAX_PID_NUM; i++) {
         if (pid_occupied[i] == 0) {
             pid_occupied[i] = 1;
             return i;

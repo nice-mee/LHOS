@@ -1,6 +1,6 @@
 #include "syscall_task.h"
 #include "paging.h"
-#include "vt.h"
+#include "devices/vt.h"
 #include "x86_desc.h"
 
 static void set_user_PDE(uint32_t pid)
@@ -246,7 +246,7 @@ int32_t __syscall_open(const uint8_t* filename){
     dentry_t *cur_dentry;
     // find the dentry for the file according to its name
     // if the file does not exist, open fails
-    if(0 != read_dentry_by_name(filename, &cur_dentry))
+    if(0 != read_dentry_by_name(filename, cur_dentry))
         return -1;
     pcb_t* cur_pcb = get_current_pcb();
     int32_t fd;
@@ -262,11 +262,11 @@ int32_t __syscall_open(const uint8_t* filename){
     cur_pcb->fd_array[fd].inode_index = cur_dentry->inode_index;
     cur_pcb->fd_array[fd].file_position = 0;
     // set up the operation table according to the file type
-    if(cur_dentry->file_type == 0)
+    if(cur_dentry->file_type == RTC_FILE_TYPE)
         cur_pcb->fd_array[fd].operation_table = &rtc_operation_table;
-    else if(cur_dentry->file_type == 1)
+    else if(cur_dentry->file_type == DIR_FILE_TYPE)
         cur_pcb->fd_array[fd].operation_table = &dir_operation_table;
-    else if(cur_dentry->file_type == 2)
+    else if(cur_dentry->file_type == REGULAR_FILE_TYPE)
         cur_pcb->fd_array[fd].operation_table = &file_operation_table;
     else{
         cur_pcb->fd_array[fd].flags = 0;

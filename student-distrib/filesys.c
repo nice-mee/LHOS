@@ -205,14 +205,14 @@ int32_t dir_close(int32_t id){
     pcb_t* cur_pcb = get_current_pcb();
     file_descriptor_t* cur_fd;
     /* if if out of boundary, close fail */
-    if(id < 0 || id >= NUM_FILES) return -1;
+    if(id < 2 || id >= NUM_FILES) return -1;
 
     cur_fd = &(cur_pcb->fd_array[id]);
     /* if that id is invalid, close fail */
     if(cur_fd->flags != IN_USE || cur_fd->inode_index != 0) return -1;
 
     /* free that file descriptor if every thing all right */
-    cur_fd->flags == READY_TO_BE_USED;
+    cur_fd->flags = READY_TO_BE_USED;
     return 0;
 }
 
@@ -231,7 +231,7 @@ int32_t dir_read(int32_t fd, void* buf, int32_t nbytes){
     pcb_t* cur_pcb = get_current_pcb();
     file_descriptor_t* cur_fd;
     /* if buf is null or fd is invalid, read fails */
-    if(buf == NULL || fd < 0 || fd >= NUM_FILES) return -1;
+    if(buf == NULL || fd < 2 || fd >= NUM_FILES) return -1;
 
     cur_fd = &(cur_pcb->fd_array[fd]);
     /* if read reach end, return 0 directly */
@@ -312,14 +312,14 @@ int32_t fclose(int32_t fd){
     pcb_t* cur_pcb = get_current_pcb();
     file_descriptor_t* cur_fd;
     /* if if out of boundary, close fail */
-    if(fd < 0 || fd >= NUM_FILES) return -1;
+    if(fd < 2 || fd >= NUM_FILES) return -1;
 
     cur_fd = &(cur_pcb->fd_array[fd]);
     /* if that id is invalid, close fail */
     if(cur_fd->flags != IN_USE) return -1;
 
     /* free that file descriptor if every thing all right */
-    cur_fd->flags == READY_TO_BE_USED;
+    cur_fd->flags = READY_TO_BE_USED;
     return 0;
 }
 
@@ -334,7 +334,6 @@ int32_t fclose(int32_t fd){
  * Side Effects: None
  */
 int32_t fread(int32_t fd, void* buf, int32_t nbytes){
-    dentry_t dentry;
     uint32_t bytes_read;
     pcb_t* cur_pcb = get_current_pcb();
     file_descriptor_t* cur_fd;

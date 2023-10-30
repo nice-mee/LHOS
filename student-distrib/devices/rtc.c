@@ -118,7 +118,7 @@ int32_t RTC_close(int32_t proc_id) {
     pcb_t* cur_pcb = get_current_pcb();
     file_descriptor_t* cur_fd;
     /* if if out of boundary, close fail */
-    if(proc_id < 0 || proc_id >= NUM_FILES) return -1;
+    if(proc_id < 2 || proc_id >= NUM_FILES) return -1;
 
     cur_fd = &(cur_pcb->fd_array[proc_id]);
     /* if that id is invalid, close fail */
@@ -144,7 +144,7 @@ int32_t RTC_close(int32_t proc_id) {
  */
 int32_t RTC_read(int32_t proc_id, void* buf, int32_t nbytes) {
     /* if proc_id out of boundary, read fails */
-    if(proc_id < 0 || proc_id >= MAX_PROC_NUM) return -1;
+    if(proc_id < 2 || proc_id >= MAX_PROC_NUM) return -1;
 
     /* virtualization: wait counter reaches zero */
     while(RTC_proc_list[proc_id].proc_count > 0);
@@ -170,7 +170,7 @@ int32_t RTC_read(int32_t proc_id, void* buf, int32_t nbytes) {
 int32_t RTC_write(int32_t proc_id, const void* buf, int32_t nbytes) {
     uint32_t freq;
     /* if buf is NULL or proc_id out of boundary, write fails */
-    if(proc_id < 0 || proc_id >= MAX_PROC_NUM || buf == NULL) return -1;
+    if(proc_id < 2 || proc_id >= MAX_PROC_NUM || buf == NULL) return -1;
     
     freq = *(uint32_t*) buf;
     /* ensuring freq is a power of 2 and within acceptable limits */

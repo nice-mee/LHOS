@@ -4,7 +4,7 @@
 #include "filesys.h"
 #include "pcb.h"
 #include "devices/rtc.h"
-#include <string.h>
+//#include <string.h>
 
 #define FILE_NAME_LEN 32  // 32B to store file name in FS
 #define ARG_LEN     128

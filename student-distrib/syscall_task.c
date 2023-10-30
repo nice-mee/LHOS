@@ -9,6 +9,14 @@ static void set_user_PDE(uint32_t pid)
     page_directory[PDE_index].P    = 1;
     page_directory[PDE_index].US   = 1;
     page_directory[PDE_index].ADDR = (EIGHT_MB + pid * FOUR_MB) >> 12;
+
+    // flushing TLB
+    asm volatile("movl %%cr3, %0;"      // move the value of cr3 into eax
+                 "movl %0, %%cr3;"      // move the value from eax back to cr3
+                 : "=a" (temp)          // output operand, using eax register
+                 :
+                 : "cc");
+
 }
 
 /**
@@ -144,12 +152,12 @@ int32_t __syscall_execute(const uint8_t* command) {
     uint8_t filename[FILE_NAME_LEN + 1];  // store  the file name
     uint8_t args[MAX_COMMAND_LEN + 1];  // store args
 
-    if (parse_args(command, filename, args)) {  // return value should be 0 on success
+    if (parse_args(command, filename, args)) {  // return value should be 0 upon success
         return INVALID_CMD;
     }
 
     // Executable check
-    if (executable_check(filename) != 0) {
+    if (executable_check(filename)) {
         return INVALID_CMD;
     }
 

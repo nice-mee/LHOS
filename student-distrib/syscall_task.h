@@ -39,7 +39,6 @@ operation_table_t file_operation_table = {
     .write_operation = fwrite
 };
 
-static int32_t parse_args(const uint8_t* command, uint8_t* args);
 int32_t __syscall_execute(const uint8_t* command);
 int32_t __syscall_halt(uint8_t status);
 

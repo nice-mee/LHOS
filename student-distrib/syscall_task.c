@@ -184,7 +184,7 @@ int32_t __syscall_execute(const uint8_t* command) {
     
     // set tss
     tss.ss0 = KER_DS;
-    tss.esp0 = cur_pcb->pid - 4;
+    tss.esp0 = MB_8 - (cur_pcb->pid-1) * KB_8;
 
     sti();
     // Context Switch

@@ -182,6 +182,10 @@ int32_t __syscall_execute(const uint8_t* command) {
     pcb_t* parent_pcb = get_current_pcb();
     pcb_t* cur_pcb = create_pcb(pid, parent_pcb);
     
+    // set tss
+    tss.ss0 = KER_DS;
+    tss.esp0 = cur_pcb->pid - 4;
+
     sti();
     // Context Switch
     asm volatile("pushl %0;"
@@ -220,6 +224,10 @@ int32_t __syscall_halt(uint8_t status) {
         cur_pcb->fd_array[i].flags = 0;
         cur_pcb->fd_array[i].operation_table->close_operation(i);
     }
+
+    // Write Parent process's info back to TSS
+    tss.ss0 = KER_DS;
+    tss.esp0 = MB_8 - parent_pcb->pid * KB_8 - 4;
 
     // Context Switch
     int32_t ret = (int32_t)status;

@@ -6,6 +6,10 @@
 #include "devices/rtc.h"
 //#include <string.h>
 
+#define KER_DS 0x0018
+#define MB_8   0X800000
+#define KB_8   0x2000
+
 #define FILE_NAME_LEN 32  // 32B to store file name in FS
 #define ARG_LEN     128
 #define MAX_ARG_NUM 24

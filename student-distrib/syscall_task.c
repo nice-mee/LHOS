@@ -335,3 +335,19 @@ int32_t __syscall_write(int32_t fd, const void* buf, int32_t nbytes){
     /* increment of file_position is handled in write_operation */
     return cur_pcb->fd_array[fd].operation_table->write_operation(fd, buf, nbytes);
 }
+
+int32_t __syscall_getargs(int32_t fd){
+    return 0;
+}
+
+int32_t __syscall_vidmap(int32_t fd){
+    return 0;
+}
+
+int32_t __syscall_set_handler(int32_t fd){
+    return 0;
+}
+
+int32_t __syscall_sigreturn(int32_t fd){
+    return 0;
+}

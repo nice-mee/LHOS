@@ -30,6 +30,20 @@ static int8_t keycode_to_printable_char[2][128] =
     }
 };
 
+operation_table_t stdin_operation_table = {
+    .open_operation = NULL,
+    .close_operation = NULL,
+    .read_operation = vt_read,
+    .write_operation = NULL
+};
+
+operation_table_t stdout_operation_table = {
+    .open_operation = NULL,
+    .close_operation = NULL,
+    .read_operation = NULL,
+    .write_operation = vt_write
+};
+
 typedef struct {
     int screen_x;
     int screen_y;

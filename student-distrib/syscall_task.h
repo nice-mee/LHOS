@@ -47,5 +47,12 @@ int32_t __syscall_close(int32_t fd);
 int32_t __syscall_read(int32_t fd, void* buf, int32_t nbytes);
 int32_t __syscall_write(int32_t fd, const void* buf, int32_t nbytes);
 
+/*
+ *       / \__
+ *      (    @\___
+ *      /         O
+ *     /   (_____/
+ *    /_____/   U
+ */
 
 #endif

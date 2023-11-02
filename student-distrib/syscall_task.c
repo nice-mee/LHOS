@@ -10,12 +10,13 @@ static void set_user_PDE(uint32_t pid)
     page_directory[PDE_index].US   = 1;
     page_directory[PDE_index].ADDR = (EIGHT_MB + pid * FOUR_MB) >> 12;
 
-    // flushing TLB
-    asm volatile("movl %%cr3, %0;"      // move the value of cr3 into eax
-                 "movl %0, %%cr3;"      // move the value from eax back to cr3
-                 : "=a" (temp)          // output operand, using eax register
-                 :
-                 : "cc");
+    // flushing TLB by reloading CR3 register
+    asm volatile (
+        "movl %%cr3, %%eax;"  // Move the value of CR3 into EBX
+        "movl %%eax, %%cr3;"  // Move the value from EBX back to CR3
+        : : : "eax", "memory"
+);
+
 
 }
 
@@ -150,7 +151,7 @@ int32_t __syscall_execute(const uint8_t* command) {
     }
 
     uint8_t filename[FILE_NAME_LEN + 1];  // store  the file name
-    uint8_t args[MAX_COMMAND_LEN + 1];  // store args
+    uint8_t args[ARG_LEN + 1];  // store args
 
     if (parse_args(command, filename, args)) {  // return value should be 0 upon success
         return INVALID_CMD;
@@ -170,6 +171,8 @@ int32_t __syscall_execute(const uint8_t* command) {
     set_user_PDE(pid);
 
     // User-level Program Loader
+    dentry_t *cur_dentry;
+    read_dentry_by_name(filename, cur_dentry);
     uint32_t program_entry_point;
     if (-1 == program_loader(cur_dentry->inode_index, &program_entry_point)) {
         return INVALID_CMD; // program loader fail

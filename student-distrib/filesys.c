@@ -114,8 +114,8 @@ int32_t read_data(uint32_t inode, uint32_t offset, uint8_t* buf, uint32_t length
     uint32_t end_datablock;     // closed interval
     uint32_t startbyte_index;
     uint32_t endbyte_index;     // closed interval
-    data_block_t cur_datablock;
-    inode_t cur_inode;
+    data_block_t* cur_datablock;
+    inode_t* cur_inode;
     /* fail if inode out of boundary */
     if(inode >= boot_block->inodes_num) return -1;
 
@@ -139,38 +139,38 @@ int32_t read_data(uint32_t inode, uint32_t offset, uint8_t* buf, uint32_t length
     end_datablock = (offset + length - 1) / BLOCK_SIZE;
     startbyte_index = offset % BLOCK_SIZE;
     endbyte_index = (offset + length - 1) % BLOCK_SIZE;
-    cur_inode = inodes[inode];
+    cur_inode = &(inodes[inode]);
 
 
     if(start_datablock == end_datablock){
         /* if only involves single datablock, read it and return */
-        cur_datablock = datablocks[cur_inode.data_block_index[start_datablock]];
+        cur_datablock = &(datablocks[cur_inode->data_block_index[start_datablock]]);
         for(i = 0; i < length; i++){
-            buf[i] = cur_datablock.data[startbyte_index + i];
+            buf[i] = cur_datablock->data[startbyte_index + i];
         }
         return length;
     }
 
     /* if involves multiple datablocks, read the rest of start block */
-    cur_datablock = datablocks[cur_inode.data_block_index[start_datablock]];
+    cur_datablock = &(datablocks[cur_inode->data_block_index[start_datablock]]);
     for(i = startbyte_index; i < BLOCK_SIZE; i++){
-        buf[byte_read] = cur_datablock.data[i];
+        buf[byte_read] = cur_datablock->data[i];
         byte_read++;
     }
 
     /* then read the middle blocks */
     for(i = start_datablock + 1; i < end_datablock; i++){
-        cur_datablock = datablocks[cur_inode.data_block_index[i]];
+        cur_datablock = &(datablocks[cur_inode->data_block_index[i]]);
         for(j = 0; j < BLOCK_SIZE; j++){
-            buf[byte_read] = cur_datablock.data[j];
+            buf[byte_read] = cur_datablock->data[j];
             byte_read++;
         }
     }
 
     /* finally read the end blocks */
-    cur_datablock = datablocks[cur_inode.data_block_index[end_datablock]];
+    cur_datablock = &(datablocks[cur_inode->data_block_index[end_datablock]]);
     for(i = 0; i <= endbyte_index; i++){
-        buf[byte_read] = cur_datablock.data[i];
+        buf[byte_read] = cur_datablock->data[i];
         byte_read++;
     }
 

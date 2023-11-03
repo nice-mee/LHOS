@@ -9,6 +9,14 @@
 #define PASS 1
 #define FAIL 0
 
+/* global variable for tests */
+uint8_t buf1[4096] = {'f', 'i', 'l', 'e', ' ', 'r', 'e', 'a', 'c', 'h', ' ', 't', 'h', 'e', ' ', 'e', 'n', 'd', '\n', 0};
+uint8_t buf2[4096] = {'f', 'i', 'l', 'e', ' ', 'r', 'e', 'a', 'c', 'h', ' ', 't', 'h', 'e', ' ', 'e', 'n', 'd', '\n', 0};
+uint8_t buf3[4096] = {'f', 'i', 'l', 'e', ' ', 'r', 'e', 'a', 'c', 'h', ' ', 't', 'h', 'e', ' ', 'e', 'n', 'd', '\n', 0};
+uint8_t buf4[4096] = {'f', 'i', 'l', 'e', ' ', 'r', 'e', 'a', 'c', 'h', ' ', 't', 'h', 'e', ' ', 'e', 'n', 'd', '\n', 0};
+uint8_t buf5[4096] = {'f', 'i', 'l', 'e', ' ', 'r', 'e', 'a', 'c', 'h', ' ', 't', 'h', 'e', ' ', 'e', 'n', 'd', '\n', 0};
+uint8_t buf6[4096] = {'f', 'i', 'l', 'e', ' ', 'r', 'e', 'a', 'c', 'h', ' ', 't', 'h', 'e', ' ', 'e', 'n', 'd', '\n', 0};
+
 /* format these macros as you see fit */
 #define TEST_HEADER 	\
 	printf("[TEST %s] Running %s at %s:%d\n", __FUNCTION__, __FUNCTION__, __FILE__, __LINE__)
@@ -306,11 +314,6 @@ int dir_read_test(){
 
 int fread_test(const uint8_t* fname){
 	TEST_HEADER;
-	
-	uint8_t buf1[1024] = {'f', 'i', 'l', 'e', ' ', 'r', 'e', 'a', 'c', 'h', ' ', 't', 'h', 'e', ' ', 'e', 'n', 'd', '\n', 0};
-	uint8_t buf2[4096] = {'f', 'i', 'l', 'e', ' ', 'r', 'e', 'a', 'c', 'h', ' ', 't', 'h', 'e', ' ', 'e', 'n', 'd', '\n', 0};
-	uint8_t buf3[2048] = {'f', 'i', 'l', 'e', ' ', 'r', 'e', 'a', 'c', 'h', ' ', 't', 'h', 'e', ' ', 'e', 'n', 'd', '\n', 0};
-	uint8_t buf4[4096 + 1024] = {'f', 'i', 'l', 'e', ' ', 'r', 'e', 'a', 'c', 'h', ' ', 't', 'h', 'e', ' ', 'e', 'n', 'd', '\n', 0};
 
 	if(fopen(fname) == -1) return FAIL;
 	if(fread(0, buf1, 1024) == -1) return FAIL;
@@ -380,10 +383,6 @@ int regular_file_syscall_test(){
 	TEST_HEADER;
 	
 	int32_t fd;
-	uint8_t buf1[1024] = {'f', 'i', 'l', 'e', ' ', 'r', 'e', 'a', 'c', 'h', ' ', 't', 'h', 'e', ' ', 'e', 'n', 'd', '\n', 0};
-	uint8_t buf2[4096] = {'f', 'i', 'l', 'e', ' ', 'r', 'e', 'a', 'c', 'h', ' ', 't', 'h', 'e', ' ', 'e', 'n', 'd', '\n', 0};
-	uint8_t buf3[2048] = {'f', 'i', 'l', 'e', ' ', 'r', 'e', 'a', 'c', 'h', ' ', 't', 'h', 'e', ' ', 'e', 'n', 'd', '\n', 0};
-	uint8_t buf4[4096 + 1024] = {'f', 'i', 'l', 'e', ' ', 'r', 'e', 'a', 'c', 'h', ' ', 't', 'h', 'e', ' ', 'e', 'n', 'd', '\n', 0};
 
 	fd = __syscall_open((const uint8_t*)"frame0.txt");
 	if(fd == -1) return FAIL;
@@ -412,10 +411,6 @@ int execute_file_syscall_test(){
 	TEST_HEADER;
 	
 	int32_t fd;
-	uint8_t buf1[1024] = {'f', 'i', 'l', 'e', ' ', 'r', 'e', 'a', 'c', 'h', ' ', 't', 'h', 'e', ' ', 'e', 'n', 'd', '\n', 0};
-	uint8_t buf2[4096] = {'f', 'i', 'l', 'e', ' ', 'r', 'e', 'a', 'c', 'h', ' ', 't', 'h', 'e', ' ', 'e', 'n', 'd', '\n', 0};
-	uint8_t buf3[2048] = {'f', 'i', 'l', 'e', ' ', 'r', 'e', 'a', 'c', 'h', ' ', 't', 'h', 'e', ' ', 'e', 'n', 'd', '\n', 0};
-	uint8_t buf4[4096 + 1024] = {'f', 'i', 'l', 'e', ' ', 'r', 'e', 'a', 'c', 'h', ' ', 't', 'h', 'e', ' ', 'e', 'n', 'd', '\n', 0};
 
 	fd = __syscall_open((const uint8_t*)"hello");
 	if(fd == -1) return FAIL;
@@ -552,12 +547,6 @@ int heavy_load_syscall_test(){
 	int32_t fd5;
 	int32_t fd6;
 	int32_t fd7;
-	uint8_t buf1[50] = {'f', 'i', 'l', 'e', ' ', 'r', 'e', 'a', 'c', 'h', ' ', 't', 'h', 'e', ' ', 'e', 'n', 'd', '\n', 0};
-	uint8_t buf2[50] = {'f', 'i', 'l', 'e', ' ', 'r', 'e', 'a', 'c', 'h', ' ', 't', 'h', 'e', ' ', 'e', 'n', 'd', '\n', 0};
-	// uint8_t buf3[50] = {'f', 'i', 'l', 'e', ' ', 'r', 'e', 'a', 'c', 'h', ' ', 't', 'h', 'e', ' ', 'e', 'n', 'd', '\n', 0};
-	uint8_t buf4[50] = {'f', 'i', 'l', 'e', ' ', 'r', 'e', 'a', 'c', 'h', ' ', 't', 'h', 'e', ' ', 'e', 'n', 'd', '\n', 0};
-	uint8_t buf5[50] = {'f', 'i', 'l', 'e', ' ', 'r', 'e', 'a', 'c', 'h', ' ', 't', 'h', 'e', ' ', 'e', 'n', 'd', '\n', 0};
-	uint8_t buf6[50] = {'f', 'i', 'l', 'e', ' ', 'r', 'e', 'a', 'c', 'h', ' ', 't', 'h', 'e', ' ', 'e', 'n', 'd', '\n', 0};
 
 	fd1 = __syscall_open((const uint8_t*)"frame0.txt");
 	fd2 = __syscall_open((const uint8_t*)"cat");

@@ -31,15 +31,15 @@ static int8_t keycode_to_printable_char[2][128] =
 };
 
 operation_table_t stdin_operation_table = {
-    .open_operation = NULL,
-    .close_operation = NULL,
+    .open_operation = vt_open,
+    .close_operation = vt_close,
     .read_operation = vt_read,
     .write_operation = NULL
 };
 
 operation_table_t stdout_operation_table = {
-    .open_operation = NULL,
-    .close_operation = NULL,
+    .open_operation = vt_open,
+    .close_operation = vt_close,
     .read_operation = NULL,
     .write_operation = vt_write
 };
@@ -106,7 +106,7 @@ int32_t vt_close(int32_t id) {                              // return 0 as requi
 
 /* vt_read
  *   DESCRIPTION: Read from virtual terminal.
- *   INPUTS: fd -- file descriptor
+ *   INPUTS: fd -- should be 0, which is stdin
  *           buf -- buffer to read into
  *           nbytes -- number of bytes to read
  *   OUTPUTS: none
@@ -114,7 +114,7 @@ int32_t vt_close(int32_t id) {                              // return 0 as requi
  *   SIDE EFFECTS: none
  */
 int32_t vt_read(int32_t fd, void* buf, int32_t nbytes) {
-    if (buf == NULL || nbytes < 0)
+    if (buf == NULL || nbytes < 0 || fd != 0)
         return -1;
 
     // Wait for enter key
@@ -139,7 +139,7 @@ int32_t vt_read(int32_t fd, void* buf, int32_t nbytes) {
  *   DESCRIPTION: Write to virtual terminal.
  *                This syscall does not recognize '\0' as the end of string.
  *                It will simply write nbytes bytes to the screen.
- *   INPUTS: fd -- file descriptor
+ *   INPUTS: fd -- should be 1, which is stdout
  *           buf -- buffer to write from
  *           nbytes -- number of bytes to write
  *   OUTPUTS: none
@@ -147,7 +147,7 @@ int32_t vt_read(int32_t fd, void* buf, int32_t nbytes) {
  *   SIDE EFFECTS: none
  */
 int32_t vt_write(int32_t fd, const void* buf, int32_t nbytes) {
-    if (buf == NULL || nbytes < 0)
+    if (buf == NULL || nbytes < 0 || fd != 1)
         return -1;
     int i;
     for (i = 0; i < nbytes; i++) {

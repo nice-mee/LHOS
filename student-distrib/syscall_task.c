@@ -90,7 +90,7 @@ static int32_t executable_check(const uint8_t* name)
         return INVALID_CMD; // the filename is invalid
     }
 
-    int8_t magic_num_buf[MAGIC_NUMBERS_NUM];
+    uint8_t magic_num_buf[MAGIC_NUMBERS_NUM];
     if (-1 == read_data(cur_dentry->inode_index, 0, magic_num_buf, MAGIC_NUMBERS_NUM)) {
         return INVALID_CMD; // read data fail
     }
@@ -254,38 +254,20 @@ int32_t __syscall_halt(uint8_t status) {
  * Side Effects: This call should never return to the caller
  */
 int32_t __syscall_open(const uint8_t* filename){
-    dentry_t *cur_dentry;
+    dentry_t cur_dentry;
     // find the dentry for the file according to its name
     // if the file does not exist, open fails
-    if(0 != read_dentry_by_name(filename, cur_dentry))
-        return -1;
-    pcb_t* cur_pcb = get_current_pcb();
-    int32_t fd;
-    // find the first available file descriptor
-    for(fd = 0; fd < NUM_FILES; fd++)
-        if(cur_pcb->fd_array[fd].flags == 0)
-            break;
-    // if no available file descriptor, open fails
-    if(fd == NUM_FILES)
-        return -1;
-    // set up the file descriptor
-    cur_pcb->fd_array[fd].flags = 1;
-    cur_pcb->fd_array[fd].inode_index = cur_dentry->inode_index;
-    cur_pcb->fd_array[fd].file_position = 0;
-    // set up the operation table according to the file type
-    if(cur_dentry->file_type == RTC_FILE_TYPE)
-        cur_pcb->fd_array[fd].operation_table = &rtc_operation_table;
-    else if(cur_dentry->file_type == DIR_FILE_TYPE)
-        cur_pcb->fd_array[fd].operation_table = &dir_operation_table;
-    else if(cur_dentry->file_type == REGULAR_FILE_TYPE)
-        cur_pcb->fd_array[fd].operation_table = &file_operation_table;
+    if(0 != read_dentry_by_name(filename, &cur_dentry)) return -1;
+    if(cur_dentry.file_type == RTC_FILE_TYPE)
+        return RTC_open(filename);
+    else if(cur_dentry.file_type == DIR_FILE_TYPE)
+        return dir_open(filename);
+    else if(cur_dentry.file_type == REGULAR_FILE_TYPE)
+        return fopen(filename);
     else{
-        cur_pcb->fd_array[fd].flags = 0;
         return -1;
     }
-    // call the open operation
-    cur_pcb->fd_array[fd].operation_table->open_operation(filename);
-    return fd;
+    return 0;
 }
 
 /* __syscall_close - close the file
@@ -299,14 +281,7 @@ int32_t __syscall_close(int32_t fd){
     if(fd >= NUM_FILES || fd < 2)
         return -1;
     pcb_t* cur_pcb = get_current_pcb();
-    if(cur_pcb->fd_array[fd].flags == 0)
-        return -1;
-    // close the file and reset the file descriptor
-    cur_pcb->fd_array[fd].flags = 0;
-    cur_pcb->fd_array[fd].inode_index = 0;
-    cur_pcb->fd_array[fd].file_position = 0;
-    cur_pcb->fd_array[fd].operation_table->close_operation(fd);
-    return 0;
+    return cur_pcb->fd_array[fd].operation_table->close_operation(fd);
 }
 
 /* __syscall_read - read the file

@@ -169,7 +169,7 @@ int32_t read_data(uint32_t inode, uint32_t offset, uint8_t* buf, uint32_t length
  * open a directory if the fd_array has empty sapce and initialize it
  * Inputs: id - meaningless
  * Outputs: none
- * Return: 0 if successfully, -1 if fail
+ * Return: file descriptor if successfully, -1 if fail
  * Side Effects: None
  */
 int32_t dir_open(const uint8_t* id){
@@ -187,7 +187,7 @@ int32_t dir_open(const uint8_t* id){
             cur_fd->inode_index = 0;
             cur_fd->file_position = 0;
             cur_fd->flags = IN_USE;
-            return 0;
+            return i;
         }
     }
     return -1;  // if no empty, open fail
@@ -269,7 +269,7 @@ int32_t dir_write(int32_t fd, const void* buf, int32_t nbytes){
  * open a file if there exists empty in fd_array, then assign file descriptor to fd_array
  * Inputs: fname - the name of file to be opened
  * Outputs: none
- * Return: 0 if successfully, -1 if open fails
+ * Return: file descriptor if successfully, -1 if open fails
  * Side Effects: None
  */
 int32_t fopen(const uint8_t* fname){
@@ -294,7 +294,7 @@ int32_t fopen(const uint8_t* fname){
             cur_fd->inode_index = dentry.inode_index;
             cur_fd->file_position = 0;
             cur_fd->flags = IN_USE;
-            return 0;
+            return i;
         }
     }
     return -1;  // if no empty, open fail

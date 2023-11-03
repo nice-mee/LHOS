@@ -6,7 +6,7 @@
 #include "devices/rtc.h"
 
 #define FILE_NAME_LEN 32  // 32B to store file name in FS
-#define ARG_LEN     128
+#define ARG_LEN     1024
 #define MAX_ARG_NUM 24
 #define INVALID_CMD -1
 

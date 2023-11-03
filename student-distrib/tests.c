@@ -385,9 +385,10 @@ int regular_file_syscall_test(){
 	int32_t fd;
 
 	fd = __syscall_open((const uint8_t*)"frame0.txt");
+	printf("fd value: %d\n", fd);
 	if(fd == -1) return FAIL;
 	if(__syscall_read(fd, buf1, 20) == -1) return FAIL;
-	printf("First reading result:\n");
+	printf("First reading result: File Descriptor%d:\n", fd);
 	vt_write(1, buf1, 20);
 	printf("\n");
 	if(__syscall_read(fd, buf2, 20) == -1) return FAIL;

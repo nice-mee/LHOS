@@ -91,7 +91,7 @@ int32_t RTC_open(const uint8_t* proc_id) {
     int32_t i;
     pcb_t* cur_pcb = get_current_pcb();
     file_descriptor_t* cur_fd;
-    for(i = 0; i < NUM_FILES; i++){
+    for(i = 2; i < NUM_FILES; i++){             // 2 as stdin and stdout already been used
         cur_fd = &(cur_pcb->fd_array[i]);
         if(cur_fd->flags == READY_TO_BE_USED){
             /* if there exists empty file descriptor, assign it */

@@ -302,7 +302,8 @@ int32_t __syscall_close(int32_t fd){
  * Side Effects: This call should never return to the caller
  */
 int32_t __syscall_read(int32_t fd, void* buf, int32_t nbytes){
-    /* input being checked in read operation */
+    /* if fd out of boundary, read fail */
+    if(fd < 0 || fd >= NUM_FILES) return -1;
     /* increment of file_position is handled in read_operation */
     return get_current_pcb()->fd_array[fd].operation_table->read_operation(fd, buf, nbytes);
 }

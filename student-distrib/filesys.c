@@ -230,34 +230,51 @@ int32_t dir_close(int32_t id){
 /* dir_read
  *
  * read the directory
- * Inputs: fd - meaningless here
+ * Inputs: fd - the file descriptor associated with the directory
  *         buf - the buffer to load the read data
- *         nbytes - meaningless here
+ *         nbytes - the number of bytes read, normally should be a multype of 32
  * Outputs: None
- * Return: 1 if read successfully, 0 if reach the end, -1 if fails
+ * Return: number of bytes read if read successfully, 0 if reach the end, -1 if fails
  * Side Effects: None
  */
 int32_t dir_read(int32_t fd, void* buf, int32_t nbytes){
+    int32_t i,j;
     dentry_t dentry;
+    int32_t length = nbytes;
+    int32_t dentry_read_num = (nbytes % 32 == 0) ? nbytes / 32 : (nbytes / 32 + 1);     // this equal to the smallest integer that is larger or equal to bytes / 4
+    int32_t dentry_read = 0;
+    int32_t bytes_read = 0;
     pcb_t* cur_pcb = get_current_pcb();
     file_descriptor_t* cur_fd;
     /* if buf is null or fd is invalid, read fails */
-    if(buf == NULL || fd < 2 || fd >= NUM_FILES) return -1;
+    if(buf == NULL || fd < 2 || fd >= NUM_FILES || nbytes < 0) return -1;
+
+    if(nbytes == 0) return 0;
 
     cur_fd = &(cur_pcb->fd_array[fd]);
     /* if read reach end, return 0 directly */
     if(cur_fd->file_position == boot_block->dir_entry_num) return 0;
 
-    /* read the dentry by index, index is recorded in file_position */
-    if(read_dentry_by_index(cur_fd->file_position, &dentry) == -1) return -1;
-
-    /* then copy the target dentry's file name into the buffer */
-    memcpy(buf, dentry.file_name, MAX_FILE_NAME);
+    for(i = 0; i < dentry_read_num; i++){
+        /* check if reach the end */
+        if(cur_fd->file_position + i >= boot_block->dir_entry_num){
+            cur_fd->file_position = boot_block->dir_entry_num;
+            return bytes_read;
+        }
+        /* read the dentry by index, index is recorded in file_position */
+        if(read_dentry_by_index(cur_fd->file_position + i, &dentry) == -1) return -1;
+        /* then copy the target dentry's file name into the buffer */
+        for(j = 0; j < 32 & j < length; j++){               // 32 as max file name 32 bytes
+            ((char*)buf)[bytes_read + j] = dentry.file_name[j];
+        }
+        length -= 32;
+        bytes_read += j;
+    }
 
     /* update dentry position */
-    cur_fd->file_position++;
+    cur_fd->file_position += dentry_read_num;
 
-    return 1;
+    return bytes_read;
 }
 
 /* dir_write

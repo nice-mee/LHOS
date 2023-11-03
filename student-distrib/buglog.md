@@ -47,3 +47,11 @@
 > 	Initially, I thought it was because some sort of overflow. But after I take a deep look at the file and the definition of printf. I find that printf will keep printing until it encounts '\0'. So it need to be changed to vt_write();
 > **Solution** 
 > 	The solution is to change the function printf() to vt_write() in `tests.c`.
+
+>[!Bug 7]
+> **Description** 
+> 	The output of syscall_edge_test is always FAIL when it handle "__syscall_read(-1, buf1, 100) != -1".
+> **Analysis** 
+> 	Initially, I check my code carefully and make sure that every open operation for each specific type checks the validness of input as I thought the fd is directly passed into the open operation. However, I suddenly find that it needs to find corresponding file descriptor first in fd_array before calling the open operation.
+> **Solution** 
+> 	The solution is to check the validness of fd before calling open operation, while the validness for other input parameter can be left to the open operation.

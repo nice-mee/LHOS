@@ -102,4 +102,7 @@ int32_t fclose(int32_t fd);
 int32_t fread(int32_t fd, void* buf, int32_t nbytes);
 int32_t fwrite(int32_t fd, const void* buf, int32_t nbytes);
 
+extern operation_table_t file_operation_table;
+extern operation_table_t dir_operation_table;
+
 #endif /* _FILESYS_H */

@@ -389,7 +389,7 @@ int regular_file_syscall_test(){
 	if(fd == -1) return FAIL;
 	if(__syscall_read(fd, buf1, 20) == -1) return FAIL;
 	printf("First reading result:\n");
-	vt_write(fd, buf1, 20);
+	vt_write(1, buf1, 20);
 	printf("\n");
 	if(__syscall_read(fd, buf2, 20) == -1) return FAIL;
 	printf("Second reading result:\n");

@@ -14,6 +14,20 @@ dentry_t* dentries;
 inode_t* inodes;
 data_block_t* datablocks;
 
+operation_table_t file_operation_table = {
+    .open_operation = fopen,
+    .close_operation = fclose,
+    .read_operation = fread,
+    .write_operation = fwrite
+};
+
+operation_table_t dir_operation_table = {
+    .open_operation = dir_open,
+    .close_operation = dir_close,
+    .read_operation = dir_read,
+    .write_operation = dir_write
+};
+
 /* filesys_init
  *
  * initialize the file system with given in memory boot block
@@ -180,10 +194,7 @@ int32_t dir_open(const uint8_t* id){
         cur_fd = &(cur_pcb->fd_array[i]);
         if(cur_fd->flags == READY_TO_BE_USED){
             /* if there exists empty file descriptor, assign it */
-            cur_fd->operation_table->open_operation = dir_open;
-            cur_fd->operation_table->close_operation = dir_close;
-            cur_fd->operation_table->read_operation = dir_read;
-            cur_fd->operation_table->write_operation = dir_write;
+            cur_fd->operation_table = &dir_operation_table;
             cur_fd->inode_index = 0;
             cur_fd->file_position = 0;
             cur_fd->flags = IN_USE;
@@ -287,10 +298,7 @@ int32_t fopen(const uint8_t* fname){
         cur_fd = &(cur_pcb->fd_array[i]);
         if(cur_fd->flags == READY_TO_BE_USED){
             /* if there exists empty file descriptor, assign it */
-            cur_fd->operation_table->open_operation = fopen;
-            cur_fd->operation_table->close_operation = fclose;
-            cur_fd->operation_table->read_operation = fread;
-            cur_fd->operation_table->write_operation = fwrite;
+            cur_fd->operation_table = &file_operation_table;
             cur_fd->inode_index = dentry.inode_index;
             cur_fd->file_position = 0;
             cur_fd->flags = IN_USE;

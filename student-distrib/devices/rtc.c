@@ -16,6 +16,13 @@ typedef struct {
 
 static proc_freqcount_pair RTC_proc_list[MAX_PROC_NUM];
 
+operation_table_t RTC_operation_table = {
+    .open_operation = RTC_open,
+    .close_operation = RTC_close,
+    .read_operation = RTC_read,
+    .write_operation = RTC_write
+};
+
 /* RTC_init - Initialization of Real-Time Clock (RTC)
  * 
  * Initializes the RTC to a base frequency of 1024.
@@ -88,10 +95,7 @@ int32_t RTC_open(const uint8_t* proc_id) {
         cur_fd = &(cur_pcb->fd_array[i]);
         if(cur_fd->flags == READY_TO_BE_USED){
             /* if there exists empty file descriptor, assign it */
-            cur_fd->operation_table->open_operation = RTC_open;
-            cur_fd->operation_table->close_operation = RTC_close;
-            cur_fd->operation_table->read_operation = RTC_read;
-            cur_fd->operation_table->write_operation = RTC_write;
+            cur_fd->operation_table = &RTC_operation_table;
             cur_fd->inode_index = 0;
             cur_fd->file_position = 0;
             cur_fd->flags = IN_USE;

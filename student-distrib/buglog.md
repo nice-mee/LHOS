@@ -88,3 +88,11 @@
  *         └──┴──┘       └──┴──┘
  *                wish there's no more bug
  */
+
+>[!Bug 7]
+> **Description** 
+> 	The output of syscall_edge_test is always FAIL when it handle "__syscall_read(-1, buf1, 100) != -1".
+> **Analysis** 
+> 	Initially, I check my code carefully and make sure that every open operation for each specific type checks the validness of input as I thought the fd is directly passed into the open operation. However, I suddenly find that it needs to find corresponding file descriptor first in fd_array before calling the open operation.
+> **Solution** 
+> 	The solution is to check the validness of fd before calling open operation, while the validness for other input parameter can be left to the open operation.

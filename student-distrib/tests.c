@@ -291,7 +291,7 @@ int read_dentry_by_index_test(uint32_t index){
 
 int dir_read_test(){
 	TEST_HEADER;
-	
+	// can not be used in checkpoint 3
 	uint32_t i;
 	uint8_t buf[MAX_FILE_NAME];
 	int32_t result;
@@ -302,10 +302,10 @@ int dir_read_test(){
 
 	dir_open(NULL);
 	for(i = 0; i < MAX_FILE_NUM + 1; i++){
-		result = dir_read(0, buf, 0);
+		result = dir_read(0, buf, 32);
 		if(result == -1) return FAIL;
 		if(result == 0) return PASS;
-		printf("The %u dentry has file name ", i);
+		printf("The %u read get file name ", i);
 		vt_write(1, buf, MAX_FILE_NAME);
 		printf("\n");
 	}
@@ -385,7 +385,6 @@ int regular_file_syscall_test(){
 	int32_t fd;
 
 	fd = __syscall_open((const uint8_t*)"frame0.txt");
-	printf("fd value: %d\n", fd);
 	if(fd == -1) return FAIL;
 	if(__syscall_read(fd, buf1, 20) == -1) return FAIL;
 	printf("First reading result: File Descriptor%d:\n", fd);
@@ -416,7 +415,7 @@ int execute_file_syscall_test(){
 	fd = __syscall_open((const uint8_t*)"hello");
 	if(fd == -1) return FAIL;
 	if(__syscall_read(fd, buf1, 20) == -1) return FAIL;
-	printf("First reading result:\n");
+	printf("First reading result: File Descriptor%d:\n", fd);
 	vt_write(fd, buf1, 20);
 	printf("\n");
 	if(__syscall_read(fd, buf2, 20) == -1) return FAIL;
@@ -458,20 +457,21 @@ int directory_syscall_test(){
 	int32_t result;
 
 	fd = __syscall_open((const uint8_t*)".");
+	printf("fd value: %d\n", fd);
 	if(fd == -1) return -1;
-	if(__syscall_read(0, NULL, 2) != -1) return FAIL;
+	if(__syscall_read(fd, NULL, 2) != -1) return FAIL;
 	if(__syscall_close(fd) == -1) return FAIL;
 
 	fd = __syscall_open((const uint8_t*)".");
 	if(__syscall_write(fd, buf1, 5) != -1) return FAIL;
 	for(i = 0; i < MAX_FILE_NUM + 1; i++){
-		result = __syscall_read(fd, buf, 0);
+		result = __syscall_read(fd, buf, MAX_FILE_NAME);
 		if(result == -1) return FAIL;
 		if(result == 0){
 			if(__syscall_close(fd) == -1) return FAIL;
 			return PASS;
 		}
-		printf("The %u dentry has file name ", i);
+		printf("The %u read get file name ", i);
 		vt_write(1, buf, MAX_FILE_NAME);
 		printf("\n");
 	}
@@ -487,6 +487,7 @@ int rtc_syscall_test(){
 	int32_t fd;
 
 	fd = __syscall_open((const uint8_t*)"rtc");
+	printf("fd value: %d\n", fd);
 	if(fd == -1) return FAIL;
 	while(freq <= RTC_BASE_FREQ) {
 		printf("current freq:%d\n", freq);
@@ -563,33 +564,34 @@ int heavy_load_syscall_test(){
 	if(fd5 == -1) return FAIL;
 	if(fd6 == -1) return FAIL;
 	if(fd7 != -1) return FAIL;
+
 	if(__syscall_read(fd1, buf1, 50) == -1) return FAIL;
-	printf("First reading result: File Descriptor%i:\n", fd1);
-	vt_write(fd1, buf1, 50);
+	printf("First reading result: File Descriptor%d:\n", fd1);
+	vt_write(1, buf1, 50);
 	printf("\n");
-	if(__syscall_read(fd2, buf2, 50) == -1) return FAIL;
-	printf("Second reading result: File Descriptor%i:\n", fd2);
-	vt_write(fd2, buf2, 50);
+	if(__syscall_read(fd2, buf2, 500) == -1) return FAIL;
+	printf("Second reading result: File Descriptor%d:\n", fd2);
+	vt_write(1, buf2, 500);
 	printf("\n");
 	if(__syscall_read(fd4, buf4, 50) == -1) return FAIL;
-	printf("Third reading result: File Descriptor%i:\n", fd4);
-	vt_write(fd4, buf4, 50);
+	printf("Third reading result: File Descriptor%d:\n", fd4);
+	vt_write(1, buf4, 32);
 	printf("\n");
-	if(__syscall_read(fd5, buf5, 50) == -1) return FAIL;
-	printf("Forth reading result: File Descriptor%i:\n", fd5);
-	vt_write(fd5, buf5, 50);
+	if(__syscall_read(fd5, buf5, 32) == -1) return FAIL;
+	printf("Forth reading result: File Descriptor%d:\n", fd5);
+	vt_write(1, buf5, 32);
 	printf("\n");
 	if(__syscall_read(fd6, buf6, 50) == -1) return FAIL;
-	printf("Fifth reading result: File Descriptor%i:\n", fd6);
-	vt_write(fd6, buf6, 50);
+	printf("Fifth reading result: File Descriptor%d:\n", fd6);
+	vt_write(1, buf6, 50);
 	printf("\n");
 
 	if(__syscall_close(fd1) == -1) return FAIL;
 	fd1 = __syscall_open((const uint8_t*)"frame1.txt");
 	if(fd1 == -1) return FAIL;
 	if(__syscall_read(fd1, buf1, 50) == -1) return FAIL;
-	printf("Sixth reading result: File Descriptor%i:\n", fd1);
-	vt_write(fd1, buf1, 50);
+	printf("Sixth reading result: File Descriptor%d:\n", fd1);
+	vt_write(1, buf1, 50);
 	printf("\n");
 
 	if(__syscall_close(fd1) == -1) return FAIL;
@@ -599,6 +601,14 @@ int heavy_load_syscall_test(){
 	if(__syscall_close(fd5) == -1) return FAIL;
 	if(__syscall_close(fd6) == -1) return FAIL;
 	if(__syscall_close(fd7) != -1) return FAIL;
+	return PASS;
+}
+
+int syscall_edge_test(){
+	if(__syscall_open("BYDBYD") != -1) return FAIL;
+	if(__syscall_read(-1, buf1, 100) != -1) return FAIL;
+	if(__syscall_write(-1, buf2, 100) != -1) return FAIL;
+	if((__syscall_close(-1) != -1) || (__syscall_close(0) != -1) || (__syscall_close(1) != -1)) return FAIL;
 	return PASS;
 }
 
@@ -638,5 +648,13 @@ void launch_tests(){
 	// TEST_OUTPUT("fread_test", fread_test("hello"));
 	// TEST_OUTPUT("RTC_change_freq", RTC_change_freq());
 	// TEST_OUTPUT("pcb_tests", pcb_tests());
-	TEST_OUTPUT("regular_file_syscall_test", regular_file_syscall_test());
+	// TEST_OUTPUT("regular_file_syscall_test", regular_file_syscall_test());
+	// TEST_OUTPUT("execute_file_syscall_test", execute_file_syscall_test());
+	// TEST_OUTPUT("long_name_file_syscall_test", long_name_file_syscall_test());
+	// TEST_OUTPUT("directory_syscall_test", directory_syscall_test());
+	// TEST_OUTPUT("rtc_syscall_test", rtc_syscall_test());
+	// TEST_OUTPUT("keyboard_read_syscall_test", keyboard_read_syscall_test());
+	// TEST_OUTPUT("keyboard_write_syscall_test", keyboard_write_syscall_test());
+	TEST_OUTPUT("heavy_load_syscall_test", heavy_load_syscall_test());
+	// TEST_OUTPUT("syscall_edge_test", syscall_edge_test());
 }

@@ -340,18 +340,18 @@ int32_t __syscall_write(int32_t fd, const void* buf, int32_t nbytes){
     return cur_pcb->fd_array[fd].operation_table->write_operation(fd, buf, nbytes);
 }
 
-int32_t __syscall_getargs(int32_t fd){
-    return 0;
+int32_t __syscall_getargs(uint8_t* buf, int32_t nbytes){
+    return -1;
 }
 
-int32_t __syscall_vidmap(int32_t fd){
-    return 0;
+int32_t __syscall_vidmap(uint8_t** screen_start){
+    return -1;
 }
 
-int32_t __syscall_set_handler(int32_t fd){
-    return 0;
+int32_t __syscall_set_handler(int32_t signum, void* handler_address){
+    return -1;
 }
 
-int32_t __syscall_sigreturn(int32_t fd){
-    return 0;
+int32_t __syscall_sigreturn(void){
+    return -1;
 }

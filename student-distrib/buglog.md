@@ -47,3 +47,11 @@
 > 	Initially, I thought it was because some sort of overflow. But after I take a deep look at the file and the definition of printf. I find that printf will keep printing until it encounts '\0'. So it need to be changed to vt_write();
 > **Solution** 
 > 	The solution is to change the function printf() to vt_write() in `tests.c`.
+
+>[!Bug 7]
+> **Description** 
+> 	This is a compiling error. Multiple files under the "devices" directory met the error "multiple definition of 'stdin_operation _table' and 'stdout_operation _table.'"
+> **Analysis** 
+> 	This error occurred because the two tables are defined and initialized in exception_handler.h, which is included in every file under "devices". So these tables will be defined and initialized multiple times when compiling, causing the error. 
+> **Solution** 
+>   I moved the definition of the two tables into exception_handler.c and use extern in its head file.

@@ -13,6 +13,8 @@ extern int32_t vt_read(int32_t fd, void* buf, int32_t nbytes);
 extern int32_t vt_write(int32_t fd, const void* buf, int32_t nbytes);
 extern void vt_keyboard(keycode_t keycode, int release);
 void vt_putc(char c);
+extern int32_t bad_read_call(int32_t fd, void* buf, int32_t nbytes);
+extern int32_t bad_write_call(int32_t fd, const void* buf, int32_t nbytes);
 
 extern operation_table_t stdin_operation_table;
 extern operation_table_t stdout_operation_table;

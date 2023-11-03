@@ -7,6 +7,7 @@ static void set_user_PDE(uint32_t pid)
 {
     int32_t PDE_index = _128_MB >> 22;
     page_directory[PDE_index].P    = 1;
+    page_directory[PDE_index].PS   = 1;
     page_directory[PDE_index].US   = 1;
     page_directory[PDE_index].ADDR = (EIGHT_MB + pid * FOUR_MB) >> 12;
 
@@ -83,15 +84,15 @@ static int32_t parse_args(const uint8_t* command, uint8_t* filename, uint8_t* ar
 static int32_t executable_check(const uint8_t* name)
 {
      // set a new dentry for the file
-    dentry_t *cur_dentry;
+    dentry_t cur_dentry;
     
     // find the dentry for the file according to its name
-    if (-1 == read_dentry_by_name(name, cur_dentry)) {
+    if (-1 == read_dentry_by_name(name, &cur_dentry)) {
         return INVALID_CMD; // the filename is invalid
     }
 
     uint8_t magic_num_buf[MAGIC_NUMBERS_NUM];
-    if (-1 == read_data(cur_dentry->inode_index, 0, magic_num_buf, MAGIC_NUMBERS_NUM)) {
+    if (-1 == read_data(cur_dentry.inode_index, 0, magic_num_buf, MAGIC_NUMBERS_NUM)) {
         return INVALID_CMD; // read data fail
     }
 
@@ -171,10 +172,10 @@ int32_t __syscall_execute(const uint8_t* command) {
     set_user_PDE(pid);
 
     // User-level Program Loader
-    dentry_t *cur_dentry;
-    read_dentry_by_name(filename, cur_dentry);
+    dentry_t cur_dentry;
+    read_dentry_by_name(filename, &cur_dentry);
     uint32_t program_entry_point;
-    if (-1 == program_loader(cur_dentry->inode_index, &program_entry_point)) {
+    if (-1 == program_loader(cur_dentry.inode_index, &program_entry_point)) {
         return INVALID_CMD; // program loader fail
     }
     
@@ -182,9 +183,15 @@ int32_t __syscall_execute(const uint8_t* command) {
     pcb_t* parent_pcb = get_current_pcb();
     pcb_t* cur_pcb = create_pcb(pid, parent_pcb);
     
-    // set tss
-    tss.ss0 = KER_DS;
-    tss.esp0 = MB_8 - (cur_pcb->pid-1) * KB_8;
+    // set TSS
+    tss.ss0 = KERNEL_DS;
+    tss.esp0 = EIGHT_MB - cur_pcb->pid * EIGHT_KB;
+
+    asm volatile("movl %%esp, %0;"
+                 "movl %%ebp, %1;"
+                : "=r"(parent_pcb->esp),
+                  "=r"(parent_pcb->ebp)
+                : : "memory");
 
     sti();
     // Context Switch
@@ -226,8 +233,8 @@ int32_t __syscall_halt(uint8_t status) {
     }
 
     // Write Parent process's info back to TSS
-    tss.ss0 = KER_DS;
-    tss.esp0 = MB_8 - parent_pcb->pid * KB_8 - 4;
+    tss.ss0 = KERNEL_DS;
+    tss.esp0 = EIGHT_MB - parent_pcb->pid * EIGHT_KB;
 
     // Context Switch
     int32_t ret = (int32_t)status;

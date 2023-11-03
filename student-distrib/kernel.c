@@ -14,6 +14,7 @@
 #include "devices/rtc.h"
 #include "devices/keyboard.h"
 #include "devices/vt.h"
+#include "syscall_task.h"
 
 #define RUN_TESTS
 
@@ -173,6 +174,7 @@ void entry(unsigned long magic, unsigned long addr) {
     launch_tests();
 #endif
     /* Execute the first program ("shell") ... */
+    // __syscall_execute((uint8_t*)"shell");
 
     /* Spin (nicely, so we don't chew up cycles) */
     asm volatile (".1: hlt; jmp .1;");

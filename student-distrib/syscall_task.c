@@ -47,6 +47,7 @@ static int32_t parse_args(const uint8_t* command, uint8_t* filename, uint8_t* ar
 
     // extracting the filename
     while (command[i] != ' ' && command[i] != '\0') {
+        if(name_len >= FILE_NAME_LEN) return INVALID_CMD; // filename too long (longer than 32 bytes
         filename[j] = command[i];
         i++;
         j++;
@@ -222,6 +223,7 @@ int32_t __syscall_halt(uint8_t status) {
     pcb_t* cur_pcb = get_current_pcb();
     pcb_t* parent_pcb = cur_pcb->parent_pcb;
 
+    cli();
     // Restore parent paging
     set_user_PDE(parent_pcb->pid);
 
@@ -238,9 +240,11 @@ int32_t __syscall_halt(uint8_t status) {
     tss.esp0 = EIGHT_MB - parent_pcb->pid * EIGHT_KB;
 
     free_pid(cur_pcb->pid);
+    sti();
 
     // Context Switch
     int32_t ret = (int32_t)status;
+    if (status == 255) ret = 256;
     asm volatile("movl %0, %%esp;"
                  "movl %1, %%ebp;"
                  "movl %2, %%eax;"
@@ -306,6 +310,7 @@ int32_t __syscall_close(int32_t fd){
  */
 int32_t __syscall_read(int32_t fd, void* buf, int32_t nbytes){
     /* input being checked in read operation */
+    if(fd < 0 || fd >= NUM_FILES || get_current_pcb()->fd_array[fd].flags == 0) return -1;
     /* increment of file_position is handled in read_operation */
     return get_current_pcb()->fd_array[fd].operation_table->read_operation(fd, buf, nbytes);
 }
@@ -323,7 +328,7 @@ int32_t __syscall_read(int32_t fd, void* buf, int32_t nbytes){
 int32_t __syscall_write(int32_t fd, const void* buf, int32_t nbytes){
     pcb_t* cur_pcb = get_current_pcb();
     /* if fd out of boundary or buf or nbytes is incalid, read fails */
-    if(fd < 0 || fd >= NUM_FILES || buf == NULL || nbytes < 0) return -1;
+    if(fd < 0 || fd >= NUM_FILES || cur_pcb->fd_array[fd].flags == 0) return -1;
 
     /* increment of file_position is handled in write_operation */
     return cur_pcb->fd_array[fd].operation_table->write_operation(fd, buf, nbytes);

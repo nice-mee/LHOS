@@ -16,6 +16,13 @@ typedef struct {
 
 static proc_freqcount_pair RTC_proc_list[MAX_PROC_NUM];
 
+operation_table_t RTC_operation_table = {
+    .open_operation = RTC_open,
+    .close_operation = RTC_close,
+    .read_operation = RTC_read,
+    .write_operation = RTC_write
+};
+
 /* RTC_init - Initialization of Real-Time Clock (RTC)
  * 
  * Initializes the RTC to a base frequency of 1024.
@@ -75,8 +82,8 @@ void __intr_RTC_handler(void) {
  * setting the RTC frequency to 2Hz and validating the process's ID if the fd_array
  * has empty space
  * Parameters:
- *    proc_id: id of the process
- * Returns: 0 for success, -1 for failure
+ *    proc_id: meaningless here
+ * Returns: file descriptor for success, -1 for failure
  * Side Effects: 1. sets the RTC frequency for the process to 2Hz
  *               2. validates the process's id
  */
@@ -84,22 +91,19 @@ int32_t RTC_open(const uint8_t* proc_id) {
     int32_t i;
     pcb_t* cur_pcb = get_current_pcb();
     file_descriptor_t* cur_fd;
-    for(i = 0; i < NUM_FILES; i++){
+    for(i = 2; i < NUM_FILES; i++){             // 2 as stdin and stdout already been used
         cur_fd = &(cur_pcb->fd_array[i]);
         if(cur_fd->flags == READY_TO_BE_USED){
             /* if there exists empty file descriptor, assign it */
-            cur_fd->operation_table->open_operation = RTC_open;
-            cur_fd->operation_table->close_operation = RTC_close;
-            cur_fd->operation_table->read_operation = RTC_read;
-            cur_fd->operation_table->write_operation = RTC_write;
+            cur_fd->operation_table = &RTC_operation_table;
             cur_fd->inode_index = 0;
             cur_fd->file_position = 0;
             cur_fd->flags = IN_USE;
             /* set process's freq and existence status */
-            RTC_proc_list[*proc_id].proc_freq = 2;
-            RTC_proc_list[*proc_id].proc_count = RTC_BASE_FREQ / 2; 
-            RTC_proc_list[*proc_id].proc_exist = 1;
-            return 0;
+            RTC_proc_list[i].proc_freq = 2;
+            RTC_proc_list[i].proc_count = RTC_BASE_FREQ / 2; 
+            RTC_proc_list[i].proc_exist = 1;
+            return i;
         }
     }
     return -1;  // if no empty, open fail
@@ -125,7 +129,7 @@ int32_t RTC_close(int32_t proc_id) {
     if(cur_fd->flags != IN_USE || cur_fd->inode_index != 0) return -1;
 
     /* free that file descriptor if every thing all right */
-    cur_fd->flags == READY_TO_BE_USED;
+    cur_fd->flags = READY_TO_BE_USED;
     /* invalidate the process's existence status */
     RTC_proc_list[proc_id].proc_exist = 0;
     return 0;
@@ -168,11 +172,12 @@ int32_t RTC_read(int32_t proc_id, void* buf, int32_t nbytes) {
  * Side Effects: adjusts the freq for the process
  */
 int32_t RTC_write(int32_t proc_id, const void* buf, int32_t nbytes) {
-    uint32_t freq;
+    int32_t freq;
     /* if buf is NULL or proc_id out of boundary, write fails */
     if(proc_id < 2 || proc_id >= MAX_PROC_NUM || buf == NULL) return -1;
     
-    freq = *(uint32_t*) buf;
+    freq = *(int32_t*) buf;
+    if(freq <= 0) return -1;
     /* ensuring freq is a power of 2 and within acceptable limits */
     if(!(freq && !(freq & (freq - 1))) || freq > 1024) {
         return -1;

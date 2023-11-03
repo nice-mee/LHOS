@@ -22,9 +22,9 @@ syscall_handler:
     pushl %edi
     pushl %esi
     pushfl
-    pushl %ebx
-    pushl %ecx
     pushl %edx
+    pushl %ecx
+    pushl %ebx
 
     cmpl $0, %eax
     jle arg_error

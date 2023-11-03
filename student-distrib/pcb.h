@@ -28,5 +28,6 @@ extern pcb_t* get_current_pcb();
 
 extern int32_t get_current_pid();
 extern int32_t get_available_pid();
+extern int32_t free_pid(int32_t pid);
 
 #endif /* _PCB_H */

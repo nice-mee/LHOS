@@ -14,6 +14,20 @@ dentry_t* dentries;
 inode_t* inodes;
 data_block_t* datablocks;
 
+operation_table_t file_operation_table = {
+    .open_operation = fopen,
+    .close_operation = fclose,
+    .read_operation = fread,
+    .write_operation = fwrite
+};
+
+operation_table_t dir_operation_table = {
+    .open_operation = dir_open,
+    .close_operation = dir_close,
+    .read_operation = dir_read,
+    .write_operation = dir_write
+};
+
 /* filesys_init
  *
  * initialize the file system with given in memory boot block
@@ -100,8 +114,8 @@ int32_t read_data(uint32_t inode, uint32_t offset, uint8_t* buf, uint32_t length
     uint32_t end_datablock;     // closed interval
     uint32_t startbyte_index;
     uint32_t endbyte_index;     // closed interval
-    data_block_t cur_datablock;
-    inode_t cur_inode;
+    data_block_t* cur_datablock;
+    inode_t* cur_inode;
     /* fail if inode out of boundary */
     if(inode >= boot_block->inodes_num) return -1;
 
@@ -125,38 +139,38 @@ int32_t read_data(uint32_t inode, uint32_t offset, uint8_t* buf, uint32_t length
     end_datablock = (offset + length - 1) / BLOCK_SIZE;
     startbyte_index = offset % BLOCK_SIZE;
     endbyte_index = (offset + length - 1) % BLOCK_SIZE;
-    cur_inode = inodes[inode];
+    cur_inode = &(inodes[inode]);
 
 
     if(start_datablock == end_datablock){
         /* if only involves single datablock, read it and return */
-        cur_datablock = datablocks[cur_inode.data_block_index[start_datablock]];
+        cur_datablock = &(datablocks[cur_inode->data_block_index[start_datablock]]);
         for(i = 0; i < length; i++){
-            buf[i] = cur_datablock.data[startbyte_index + i];
+            buf[i] = cur_datablock->data[startbyte_index + i];
         }
         return length;
     }
 
     /* if involves multiple datablocks, read the rest of start block */
-    cur_datablock = datablocks[cur_inode.data_block_index[start_datablock]];
+    cur_datablock = &(datablocks[cur_inode->data_block_index[start_datablock]]);
     for(i = startbyte_index; i < BLOCK_SIZE; i++){
-        buf[byte_read] = cur_datablock.data[i];
+        buf[byte_read] = cur_datablock->data[i];
         byte_read++;
     }
 
     /* then read the middle blocks */
     for(i = start_datablock + 1; i < end_datablock; i++){
-        cur_datablock = datablocks[cur_inode.data_block_index[i]];
+        cur_datablock = &(datablocks[cur_inode->data_block_index[i]]);
         for(j = 0; j < BLOCK_SIZE; j++){
-            buf[byte_read] = cur_datablock.data[j];
+            buf[byte_read] = cur_datablock->data[j];
             byte_read++;
         }
     }
 
     /* finally read the end blocks */
-    cur_datablock = datablocks[cur_inode.data_block_index[end_datablock]];
+    cur_datablock = &(datablocks[cur_inode->data_block_index[end_datablock]]);
     for(i = 0; i <= endbyte_index; i++){
-        buf[byte_read] = cur_datablock.data[i];
+        buf[byte_read] = cur_datablock->data[i];
         byte_read++;
     }
 
@@ -169,25 +183,22 @@ int32_t read_data(uint32_t inode, uint32_t offset, uint8_t* buf, uint32_t length
  * open a directory if the fd_array has empty sapce and initialize it
  * Inputs: id - meaningless
  * Outputs: none
- * Return: 0 if successfully, -1 if fail
+ * Return: file descriptor if successfully, -1 if fail
  * Side Effects: None
  */
 int32_t dir_open(const uint8_t* id){
     int32_t i;
     pcb_t* cur_pcb = get_current_pcb();
     file_descriptor_t* cur_fd;
-    for(i = 0; i < NUM_FILES; i++){
+    for(i = 2; i < NUM_FILES; i++){     // 2 as stdin and stdout already been used
         cur_fd = &(cur_pcb->fd_array[i]);
         if(cur_fd->flags == READY_TO_BE_USED){
             /* if there exists empty file descriptor, assign it */
-            cur_fd->operation_table->open_operation = dir_open;
-            cur_fd->operation_table->close_operation = dir_close;
-            cur_fd->operation_table->read_operation = dir_read;
-            cur_fd->operation_table->write_operation = dir_write;
+            cur_fd->operation_table = &dir_operation_table;
             cur_fd->inode_index = 0;
             cur_fd->file_position = 0;
             cur_fd->flags = IN_USE;
-            return 0;
+            return i;
         }
     }
     return -1;  // if no empty, open fail
@@ -269,7 +280,7 @@ int32_t dir_write(int32_t fd, const void* buf, int32_t nbytes){
  * open a file if there exists empty in fd_array, then assign file descriptor to fd_array
  * Inputs: fname - the name of file to be opened
  * Outputs: none
- * Return: 0 if successfully, -1 if open fails
+ * Return: file descriptor if successfully, -1 if open fails
  * Side Effects: None
  */
 int32_t fopen(const uint8_t* fname){
@@ -283,18 +294,15 @@ int32_t fopen(const uint8_t* fname){
     /* if this is not a regular file, open fail */
     if(dentry.file_type != REGULAR_FILE_TYPE) return -1;
 
-    for(i = 0; i < NUM_FILES; i++){
+    for(i = 2; i < NUM_FILES; i++){         // 2 as stdin and stdout already been used
         cur_fd = &(cur_pcb->fd_array[i]);
         if(cur_fd->flags == READY_TO_BE_USED){
             /* if there exists empty file descriptor, assign it */
-            cur_fd->operation_table->open_operation = fopen;
-            cur_fd->operation_table->close_operation = fclose;
-            cur_fd->operation_table->read_operation = fread;
-            cur_fd->operation_table->write_operation = fwrite;
+            cur_fd->operation_table = &file_operation_table;
             cur_fd->inode_index = dentry.inode_index;
             cur_fd->file_position = 0;
             cur_fd->flags = IN_USE;
-            return 0;
+            return i;
         }
     }
     return -1;  // if no empty, open fail

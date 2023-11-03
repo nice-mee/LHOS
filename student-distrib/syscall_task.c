@@ -228,6 +228,7 @@ int32_t __syscall_halt(uint8_t status) {
     // Close all FDs
     int i;
     for (i = 0; i < NUM_FILES; i++) {
+        if (cur_pcb->fd_array[i].flags == 0) continue;
         cur_pcb->fd_array[i].flags = 0;
         cur_pcb->fd_array[i].operation_table->close_operation(i);
     }
@@ -235,6 +236,8 @@ int32_t __syscall_halt(uint8_t status) {
     // Write Parent process's info back to TSS
     tss.ss0 = KERNEL_DS;
     tss.esp0 = EIGHT_MB - parent_pcb->pid * EIGHT_KB;
+
+    free_pid(cur_pcb->pid);
 
     // Context Switch
     int32_t ret = (int32_t)status;

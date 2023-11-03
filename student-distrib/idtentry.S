@@ -17,10 +17,46 @@ ret_from_interrupt_handler:
 /* Syscall Handling. */
 .globl syscall_handler
 syscall_handler:
-    cmpl $0, %eax
-    pushl %eax
-    jmp common_interrupt_handler
+    pushl %esp
+    pushl %ebp
+    pushl %edi
+    pushl %esi
+    pushfl
+    pushl %edx
+    pushl %ecx
+    pushl %ebx
 
+    cmpl $0, %eax
+    jle arg_error
+    cmpl $10, %eax
+    jg arg_error
+    call *syscall_table(,%eax,4)
+    jmp ret_from_syscall_handler
+arg_error:
+    movl $-1, %eax
+ret_from_syscall_handler:
+    popl %edx
+    popl %ecx
+    popl %ebx
+    popfl
+    popl %esi
+    popl %edi
+    popl %ebp
+    popl %esp
+    iret
+
+syscall_table:
+    .long 0x0
+    .long __syscall_halt
+    .long __syscall_execute
+    .long __syscall_read
+    .long __syscall_write
+    .long __syscall_open
+    .long __syscall_close
+    .long __syscall_getargs
+    .long __syscall_vidmap
+    .long __syscall_set_handler
+    .long __syscall_sigreturn
 
 
 /* Interrupt Handling. */

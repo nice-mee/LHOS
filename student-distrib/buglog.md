@@ -47,3 +47,52 @@
 > 	Initially, I thought it was because some sort of overflow. But after I take a deep look at the file and the definition of printf. I find that printf will keep printing until it encounts '\0'. So it need to be changed to vt_write();
 > **Solution** 
 > 	The solution is to change the function printf() to vt_write() in `tests.c`.
+
+>[!Bug 7]
+> **Description** 
+> 	This is a compiling error. Multiple files under the "devices" directory met the error "multiple definition of 'stdin_operation _table' and 'stdout_operation _table.'"
+> **Analysis** 
+> 	This error occurred because the two tables are defined and initialized in exception_handler.h, which is included in every file under "devices". So these tables will be defined and initialized multiple times when compiling, causing the error. 
+> **Solution** 
+>   I moved the definition of the two tables into exception_handler.c and use extern in its head file.
+
+>[!Bug 8]
+> **Description** 
+> 	Command into the shell longer than a certain amount will cause page fault.
+> **Analysis** 
+> 	In the helper function parse_args in syscall_task.c, the length of the file name is checked after totally going through it. >   In this way, if the file name is longer than expected, "filename[j] = command[i];" will go beyond the array filename. And if 
+>   the name is longer than a certain amount, one pcb structure will be overwritten, causing page fault.
+> **Solution** 
+>   I change to check the length each time reading one character and return invalid message immediately after the length goes >     beyond the range.
+
+/***
+ *      ┌─┐       ┌─┐
+ *   ┌──┘ ┴───────┘ ┴──┐
+ *   │                 │
+ *   │       ───       │
+ *   │  ─┬┘       └┬─  │
+ *   │                 │
+ *   │       ─┴─       │
+ *   │                 │
+ *   └───┐         ┌───┘
+ *       │         │
+ *       │         │
+ *       │         │
+ *       │         └──────────────┐
+ *       │                        │
+ *       │                        ├─┐
+ *       │                        ┌─┘
+ *       │                        │
+ *       └─┐  ┐  ┌───────┬──┐  ┌──┘
+ *         │ ─┤ ─┤       │ ─┤ ─┤
+ *         └──┴──┘       └──┴──┘
+ *                wish there's no more bug
+ */
+
+>[!Bug 7]
+> **Description** 
+> 	The output of syscall_edge_test is always FAIL when it handle "__syscall_read(-1, buf1, 100) != -1".
+> **Analysis** 
+> 	Initially, I check my code carefully and make sure that every open operation for each specific type checks the validness of input as I thought the fd is directly passed into the open operation. However, I suddenly find that it needs to find corresponding file descriptor first in fd_array before calling the open operation.
+> **Solution** 
+> 	The solution is to check the validness of fd before calling open operation, while the validness for other input parameter can be left to the open operation.

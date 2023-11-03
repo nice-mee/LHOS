@@ -2,11 +2,11 @@
  * vim:ts=4 noexpandtab
  */
 #include "lib.h"
+#include "syscall_task.h"
 
 #define GENERATE_EXCEPTION_HANDLER(idtvec, str, name) \
 extern void __##name() \
 { \
-    clear(); \
     printf("Exception 0x%x: " str "\n" , idtvec); \
-    while(1); \
+    __syscall_halt(-1); \
 }

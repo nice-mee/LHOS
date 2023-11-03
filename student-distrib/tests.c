@@ -3,9 +3,19 @@
 #include "lib.h"
 #include "devices/rtc.h"
 #include "filesys.h"
+#include "pcb.h"
+#include "syscall_task.h"
 
 #define PASS 1
 #define FAIL 0
+
+/* global variable for tests */
+uint8_t buf1[4096] = {'f', 'i', 'l', 'e', ' ', 'r', 'e', 'a', 'c', 'h', ' ', 't', 'h', 'e', ' ', 'e', 'n', 'd', '\n', 0};
+uint8_t buf2[4096] = {'f', 'i', 'l', 'e', ' ', 'r', 'e', 'a', 'c', 'h', ' ', 't', 'h', 'e', ' ', 'e', 'n', 'd', '\n', 0};
+uint8_t buf3[4096] = {'f', 'i', 'l', 'e', ' ', 'r', 'e', 'a', 'c', 'h', ' ', 't', 'h', 'e', ' ', 'e', 'n', 'd', '\n', 0};
+uint8_t buf4[4096] = {'f', 'i', 'l', 'e', ' ', 'r', 'e', 'a', 'c', 'h', ' ', 't', 'h', 'e', ' ', 'e', 'n', 'd', '\n', 0};
+uint8_t buf5[4096] = {'f', 'i', 'l', 'e', ' ', 'r', 'e', 'a', 'c', 'h', ' ', 't', 'h', 'e', ' ', 'e', 'n', 'd', '\n', 0};
+uint8_t buf6[4096] = {'f', 'i', 'l', 'e', ' ', 'r', 'e', 'a', 'c', 'h', ' ', 't', 'h', 'e', ' ', 'e', 'n', 'd', '\n', 0};
 
 /* format these macros as you see fit */
 #define TEST_HEADER 	\
@@ -281,7 +291,7 @@ int read_dentry_by_index_test(uint32_t index){
 
 int dir_read_test(){
 	TEST_HEADER;
-	
+	// can not be used in checkpoint 3
 	uint32_t i;
 	uint8_t buf[MAX_FILE_NAME];
 	int32_t result;
@@ -292,10 +302,10 @@ int dir_read_test(){
 
 	dir_open(NULL);
 	for(i = 0; i < MAX_FILE_NUM + 1; i++){
-		result = dir_read(0, buf, 0);
+		result = dir_read(0, buf, 32);
 		if(result == -1) return FAIL;
 		if(result == 0) return PASS;
-		printf("The %u dentry has file name ", i);
+		printf("The %u read get file name ", i);
 		vt_write(1, buf, MAX_FILE_NAME);
 		printf("\n");
 	}
@@ -304,11 +314,6 @@ int dir_read_test(){
 
 int fread_test(const uint8_t* fname){
 	TEST_HEADER;
-	
-	uint8_t buf1[1024] = {'f', 'i', 'l', 'e', ' ', 'r', 'e', 'a', 'c', 'h', ' ', 't', 'h', 'e', ' ', 'e', 'n', 'd', '\n', 0};
-	uint8_t buf2[4096] = {'f', 'i', 'l', 'e', ' ', 'r', 'e', 'a', 'c', 'h', ' ', 't', 'h', 'e', ' ', 'e', 'n', 'd', '\n', 0};
-	uint8_t buf3[2048] = {'f', 'i', 'l', 'e', ' ', 'r', 'e', 'a', 'c', 'h', ' ', 't', 'h', 'e', ' ', 'e', 'n', 'd', '\n', 0};
-	uint8_t buf4[4096 + 1024] = {'f', 'i', 'l', 'e', ' ', 'r', 'e', 'a', 'c', 'h', ' ', 't', 'h', 'e', ' ', 'e', 'n', 'd', '\n', 0};
 
 	if(fopen(fname) == -1) return FAIL;
 	if(fread(0, buf1, 1024) == -1) return FAIL;
@@ -349,10 +354,10 @@ int RTC_change_freq() {
 	int32_t i;
 	while(freq <= RTC_BASE_FREQ) {
 		printf("current freq:%d\n", freq);
-		RTC_write(&freq, 4, 0); // let pid = 0
+		RTC_write(0, &freq, 4); // let pid = 0
 		
 		for (i = 0; i < freq; ++i) {
-			RTC_read(NULL, 0, 0); 
+			RTC_read(0, NULL, 0); 
 			printf("1");
 		}
 		freq *= 2; //change to next rate
@@ -360,7 +365,253 @@ int RTC_change_freq() {
 	}
 	return PASS;
 }
+
+
 /* Checkpoint 3 tests */
+
+int pcb_tests() {
+	int32_t pid = get_current_pid();
+	pcb_t* pcb = get_current_pcb();
+	printf("pid: %d\n", pid);
+	printf("pcb: %x\n", pcb);
+	if (pid != 0) return FAIL;
+	if (pcb != (pcb_t*)0x7FE000) return FAIL;
+	return PASS;
+}
+
+int regular_file_syscall_test(){
+	TEST_HEADER;
+	
+	int32_t fd;
+
+	fd = __syscall_open((const uint8_t*)"frame0.txt");
+	if(fd == -1) return FAIL;
+	if(__syscall_read(fd, buf1, 20) == -1) return FAIL;
+	printf("First reading result: File Descriptor%d:\n", fd);
+	vt_write(1, buf1, 20);
+	printf("\n");
+	if(__syscall_read(fd, buf2, 20) == -1) return FAIL;
+	printf("Second reading result:\n");
+	vt_write(1, buf2, 20);
+	printf("\n");
+	if(__syscall_read(fd, buf3, 2048) == -1) return FAIL;
+	printf("Third reading result:\n");
+	vt_write(1, buf3, 2048);
+	printf("\n");
+	if(__syscall_read(fd, buf4, 4096) == -1) return FAIL;
+	printf("Forth reading result:\n");
+	vt_write(1, buf4, 4096);
+	printf("\n");
+	if(__syscall_write(fd, buf1, 5) != -1)	return FAIL;
+	if(__syscall_close(fd) == -1) return FAIL;
+	return PASS;
+}
+
+int execute_file_syscall_test(){
+	TEST_HEADER;
+	
+	int32_t fd;
+
+	fd = __syscall_open((const uint8_t*)"hello");
+	if(fd == -1) return FAIL;
+	if(__syscall_read(fd, buf1, 20) == -1) return FAIL;
+	printf("First reading result: File Descriptor%d:\n", fd);
+	vt_write(fd, buf1, 20);
+	printf("\n");
+	if(__syscall_read(fd, buf2, 20) == -1) return FAIL;
+	printf("Second reading result:\n");
+	vt_write(1, buf2, 20);
+	printf("\n");
+	if(__syscall_read(fd, buf3, 2048) == -1) return FAIL;
+	printf("Third reading result:\n");
+	vt_write(1, buf3, 2048);
+	printf("\n");
+	if(__syscall_read(fd, buf4, 4096) == -1) return FAIL;
+	printf("Forth reading result:\n");
+	vt_write(1, buf4, 4096);
+	printf("\n");
+	if(__syscall_write(fd, buf1, 5) != -1)	return FAIL;
+	if(__syscall_close(fd) == -1) return FAIL;
+	return PASS;
+}
+
+
+int long_name_file_syscall_test(){
+	TEST_HEADER;
+	
+	int32_t fd;
+
+	fd = __syscall_open((const uint8_t*)"verylargetextwithverylongname.txt");
+	if(fd == -1) return PASS;
+	return FAIL;
+}
+
+
+int directory_syscall_test(){
+	TEST_HEADER;
+	
+	int32_t fd;
+	uint32_t i;
+	uint8_t buf[MAX_FILE_NAME];
+	uint8_t buf1[5] = {'I', ' ', 'G', '\n', 0};
+	int32_t result;
+
+	fd = __syscall_open((const uint8_t*)".");
+	printf("fd value: %d\n", fd);
+	if(fd == -1) return -1;
+	if(__syscall_read(fd, NULL, 2) != -1) return FAIL;
+	if(__syscall_close(fd) == -1) return FAIL;
+
+	fd = __syscall_open((const uint8_t*)".");
+	if(__syscall_write(fd, buf1, 5) != -1) return FAIL;
+	for(i = 0; i < MAX_FILE_NUM + 1; i++){
+		result = __syscall_read(fd, buf, MAX_FILE_NAME);
+		if(result == -1) return FAIL;
+		if(result == 0){
+			if(__syscall_close(fd) == -1) return FAIL;
+			return PASS;
+		}
+		printf("The %u read get file name ", i);
+		vt_write(1, buf, MAX_FILE_NAME);
+		printf("\n");
+	}
+	return FAIL;
+}
+
+
+int rtc_syscall_test(){
+	TEST_HEADER;
+
+	int32_t freq = 2; // corresponding to rate "15"
+	int32_t i;
+	int32_t fd;
+
+	fd = __syscall_open((const uint8_t*)"rtc");
+	printf("fd value: %d\n", fd);
+	if(fd == -1) return FAIL;
+	while(freq <= RTC_BASE_FREQ) {
+		printf("current freq:%d\n", freq);
+		if(__syscall_write(fd, &freq, 4) == -1) return FAIL;
+		
+		for (i = 0; i < freq; ++i) {
+			if(__syscall_read(fd, NULL, 0) == -1) return FAIL; 
+			printf("1");
+		}
+		freq *= 2; //change to next rate
+		printf("\n");
+	}
+	if(__syscall_close(fd) == -1) return FAIL;
+	return PASS;
+}
+
+int keyboard_read_syscall_test(){
+	TEST_HEADER;
+
+	char buf[INPUT_BUF_SIZE + 1]; // +1 for '\0'
+	char mem_fence[26] = "This shall not be printed\n";
+	(void) mem_fence; // to avoid warning
+	int i;
+	for (i = 0; i < 4; i++) {
+		printf("Please enter something:");
+		int32_t ret = __syscall_read(0, buf, INPUT_BUF_SIZE);
+		if(ret == -1) return FAIL;
+		buf[ret] = '\0'; // add '\0' to the end of the string
+		printf("Content of input      :%s", buf);
+		printf("Return value: %d\n", ret);
+	}
+	return PASS;
+}
+
+int keyboard_write_syscall_test(){
+	TEST_HEADER;
+
+	char test1[128] = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Morbi nec eros placerat, pretium justo eget, porta leo. Duis eget in.\n"; // 128 bytes including '\0'
+	char test2[128] = "Lorem ipsum dolor sit amet, consectetur adipiscing elit fusce.\n"; // 64 bytes including first '\0'
+
+	printf("Printing test1 with 128 bytes\n");
+	if(__syscall_write(1, test1, 128) == -1) return FAIL;
+	printf("Printing test2 with 128 bytes\n");
+	if(__syscall_write(1, test2, 128) == -1) return FAIL;
+	printf("Printing test1 with 64 bytes\n");
+	if(__syscall_write(1, test1, 64) == -1) return FAIL;
+	printf("Printing test2 with 32 bytes\n");
+	if(__syscall_write(1, test2, 32) == -1) return FAIL;
+	return PASS;
+}
+
+int heavy_load_syscall_test(){
+	TEST_HEADER;
+	
+	int32_t fd1;
+	int32_t fd2;
+	int32_t fd3;
+	int32_t fd4;
+	int32_t fd5;
+	int32_t fd6;
+	int32_t fd7;
+
+	fd1 = __syscall_open((const uint8_t*)"frame0.txt");
+	fd2 = __syscall_open((const uint8_t*)"cat");
+	fd3 = __syscall_open((const uint8_t*)"ls");
+	fd4 = __syscall_open((const uint8_t*)"rtc");
+	fd5 = __syscall_open((const uint8_t*)".");
+	fd6 = __syscall_open((const uint8_t*)"frame0.txt");
+	fd7 = __syscall_open((const uint8_t*)"hello");
+	if(fd1 == -1) return FAIL;
+	if(fd2 == -1) return FAIL;
+	if(fd3 == -1) return FAIL;
+	if(fd4 == -1) return FAIL;
+	if(fd5 == -1) return FAIL;
+	if(fd6 == -1) return FAIL;
+	if(fd7 != -1) return FAIL;
+
+	if(__syscall_read(fd1, buf1, 50) == -1) return FAIL;
+	printf("First reading result: File Descriptor%d:\n", fd1);
+	vt_write(1, buf1, 50);
+	printf("\n");
+	if(__syscall_read(fd2, buf2, 500) == -1) return FAIL;
+	printf("Second reading result: File Descriptor%d:\n", fd2);
+	vt_write(1, buf2, 500);
+	printf("\n");
+	if(__syscall_read(fd4, buf4, 50) == -1) return FAIL;
+	printf("Third reading result: File Descriptor%d:\n", fd4);
+	vt_write(1, buf4, 32);
+	printf("\n");
+	if(__syscall_read(fd5, buf5, 32) == -1) return FAIL;
+	printf("Forth reading result: File Descriptor%d:\n", fd5);
+	vt_write(1, buf5, 32);
+	printf("\n");
+	if(__syscall_read(fd6, buf6, 50) == -1) return FAIL;
+	printf("Fifth reading result: File Descriptor%d:\n", fd6);
+	vt_write(1, buf6, 50);
+	printf("\n");
+
+	if(__syscall_close(fd1) == -1) return FAIL;
+	fd1 = __syscall_open((const uint8_t*)"frame1.txt");
+	if(fd1 == -1) return FAIL;
+	if(__syscall_read(fd1, buf1, 50) == -1) return FAIL;
+	printf("Sixth reading result: File Descriptor%d:\n", fd1);
+	vt_write(1, buf1, 50);
+	printf("\n");
+
+	if(__syscall_close(fd1) == -1) return FAIL;
+	if(__syscall_close(fd2) == -1) return FAIL;
+	if(__syscall_close(fd3) == -1) return FAIL;
+	if(__syscall_close(fd4) == -1) return FAIL;
+	if(__syscall_close(fd5) == -1) return FAIL;
+	if(__syscall_close(fd6) == -1) return FAIL;
+	if(__syscall_close(fd7) != -1) return FAIL;
+	return PASS;
+}
+
+int syscall_edge_test(){
+	if(__syscall_open((uint8_t *)"BYDBYD") != -1) return FAIL;
+	if(__syscall_read(-1, buf1, 100) != -1) return FAIL;
+	if(__syscall_write(-1, buf2, 100) != -1) return FAIL;
+	if((__syscall_close(-1) != -1) || (__syscall_close(0) != -1) || (__syscall_close(1) != -1)) return FAIL;
+	return PASS;
+}
+
 /* Checkpoint 4 tests */
 /* Checkpoint 5 tests */
 
@@ -391,9 +642,19 @@ void launch_tests(){
 	// TEST_OUTPUT("read_dentry_by_index_test", read_dentry_by_index_test(10));
 	// TEST_OUTPUT("read_dentry_by_name_test", read_dentry_by_name_test("frame0.txt"));
 	// TEST_OUTPUT("read_dentry_by_name_test", read_dentry_by_name_test("verylargetextwithverylongname.txt"));
-	TEST_OUTPUT("dir_read_test", dir_read_test());
+	// TEST_OUTPUT("dir_read_test", dir_read_test());
 	// TEST_OUTPUT("fread_test", fread_test("frame0.txt"));
 	// TEST_OUTPUT("fread_test", fread_test("verylargetextwithverylongname.txt"));
 	// TEST_OUTPUT("fread_test", fread_test("hello"));
 	// TEST_OUTPUT("RTC_change_freq", RTC_change_freq());
+	// TEST_OUTPUT("pcb_tests", pcb_tests());
+	// TEST_OUTPUT("regular_file_syscall_test", regular_file_syscall_test());
+	// TEST_OUTPUT("execute_file_syscall_test", execute_file_syscall_test());
+	// TEST_OUTPUT("long_name_file_syscall_test", long_name_file_syscall_test());
+	// TEST_OUTPUT("directory_syscall_test", directory_syscall_test());
+	// TEST_OUTPUT("rtc_syscall_test", rtc_syscall_test());
+	// TEST_OUTPUT("keyboard_read_syscall_test", keyboard_read_syscall_test());
+	// TEST_OUTPUT("keyboard_write_syscall_test", keyboard_write_syscall_test());
+	TEST_OUTPUT("heavy_load_syscall_test", heavy_load_syscall_test());
+	// TEST_OUTPUT("syscall_edge_test", syscall_edge_test());
 }

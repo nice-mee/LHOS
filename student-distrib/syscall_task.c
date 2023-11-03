@@ -168,6 +168,7 @@ int32_t __syscall_execute(const uint8_t* command) {
     cli();
     int pid = get_available_pid();
     if (pid == -1) {
+        sti();
         return INVALID_CMD; // no available pid
     }
     set_user_PDE(pid);

@@ -302,6 +302,7 @@ int32_t __syscall_close(int32_t fd){
     if(fd >= NUM_FILES || fd < 2)
         return -1;
     pcb_t* cur_pcb = get_current_pcb();
+    if(cur_pcb->fd_array[fd].flags != IN_USE) return -1;
     return cur_pcb->fd_array[fd].operation_table->close_operation(fd);
 }
 

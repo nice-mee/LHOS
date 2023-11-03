@@ -605,7 +605,7 @@ int heavy_load_syscall_test(){
 }
 
 int syscall_edge_test(){
-	if(__syscall_open("BYDBYD") != -1) return FAIL;
+	if(__syscall_open((uint8_t *)"BYDBYD") != -1) return FAIL;
 	if(__syscall_read(-1, buf1, 100) != -1) return FAIL;
 	if(__syscall_write(-1, buf2, 100) != -1) return FAIL;
 	if((__syscall_close(-1) != -1) || (__syscall_close(0) != -1) || (__syscall_close(1) != -1)) return FAIL;

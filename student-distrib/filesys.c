@@ -242,7 +242,6 @@ int32_t dir_read(int32_t fd, void* buf, int32_t nbytes){
     dentry_t dentry;
     int32_t length = nbytes;
     int32_t dentry_read_num = (nbytes % 32 == 0) ? nbytes / 32 : (nbytes / 32 + 1);     // this equal to the smallest integer that is larger or equal to bytes / 4
-    int32_t dentry_read = 0;
     int32_t bytes_read = 0;
     pcb_t* cur_pcb = get_current_pcb();
     file_descriptor_t* cur_fd;
@@ -264,7 +263,7 @@ int32_t dir_read(int32_t fd, void* buf, int32_t nbytes){
         /* read the dentry by index, index is recorded in file_position */
         if(read_dentry_by_index(cur_fd->file_position + i, &dentry) == -1) return -1;
         /* then copy the target dentry's file name into the buffer */
-        for(j = 0; j < 32 & j < length; j++){               // 32 as max file name 32 bytes
+        for(j = 0; j < 32 && j < length; j++){               // 32 as max file name 32 bytes
             ((char*)buf)[bytes_read + j] = dentry.file_name[j];
         }
         length -= 32;

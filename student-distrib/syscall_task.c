@@ -21,6 +21,24 @@ static void set_user_PDE(uint32_t pid)
 
 }
 
+static void set_vidmap_PDE(){
+    int32_t vidmem_index = USER_VIDMEM_START >> 22;
+    page_directory[vidmem_index].P = 1;
+    page_directory[vidmem_index].PS = 0;
+    page_directory[vidmem_index].US = 1;
+    page_directory[vidmem_index].G = 0;
+    page_directory[vidmem_index].ADDR = ((uint32_t)vidmap_table) >> 12;
+
+    // flushing TLB by reloading CR3 register
+    asm volatile (
+        "movl %%cr3, %%eax;"  // Move the value of CR3 into EBX
+        "movl %%eax, %%cr3;"  // Move the value from EBX back to CR3
+        : : : "eax", "memory"
+);
+
+
+}
+
 /**
  * parse_args
  * parse a command line input
@@ -356,8 +374,23 @@ int32_t __syscall_getargs(uint8_t* buf, int32_t nbytes){
     return 0;
 }
 
+/* __syscall_vidmap - map the text-mode video memory into user space at a pre-set virtual address
+ * Inputs: screen_start - the pre set memory location to wtite the text-mode video memory
+ * Outputs: None
+ * Return:  0 if map set successfully
+ *          -1 if vidmap fails
+ * Side Effects: This call should never return to the caller
+ */
 int32_t __syscall_vidmap(uint8_t** screen_start){
-    return -1;
+    /* if given address is NULL or not fall within the address range covered by the single use-level page, vidmap fails */
+    if((screen_start == NULL) || (screen_start < (uint8_t**)(_128_MB)) || (screen_start >= (uint8_t**)(_128_MB + FOUR_MB))) return -1;
+    
+    /* build the page structure */
+    set_vidmap_PDE();
+
+    /* load the memory location in to scree_start */
+    *screen_start = (uint8_t*)USER_VIDMEM_START;
+    return 0;
 }
 
 int32_t __syscall_set_handler(int32_t signum, void* handler_address){

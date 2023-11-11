@@ -25,6 +25,19 @@ void paging_init(){
         page_table[i].AVL  = 0;
         page_table[i].ADDR = 0;
     }
+    for (i = 0; i < PAGE_TBL_SIZE; i++) {
+        vidmap_table[i].P    = 0;
+        vidmap_table[i].RW   = 1;
+        vidmap_table[i].US   = 0;
+        vidmap_table[i].PWT  = 0;
+        vidmap_table[i].PCD  = 0;
+        vidmap_table[i].A    = 0;
+        vidmap_table[i].D    = 0;
+        vidmap_table[i].PAT  = 0;
+        vidmap_table[i].G    = 0;
+        vidmap_table[i].AVL  = 0;
+        vidmap_table[i].ADDR = 0;
+    }
 
     // Set the video memory page.
     page_table[VID_MEM_POS].P    = 1;

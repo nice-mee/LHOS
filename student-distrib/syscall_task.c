@@ -29,6 +29,11 @@ static void set_vidmap_PDE(){
     page_directory[vidmem_index].G = 0;
     page_directory[vidmem_index].ADDR = ((uint32_t)vidmap_table) >> 12;
 
+    vidmap_table[0].P = 1;
+    vidmap_table[0].US = 1;
+    vidmap_table[0].G = 0;
+    vidmap_table[0].ADDR = VID_MEM_POS;
+
     // flushing TLB by reloading CR3 register
     asm volatile (
         "movl %%cr3, %%eax;"  // Move the value of CR3 into EBX
@@ -388,7 +393,7 @@ int32_t __syscall_vidmap(uint8_t** screen_start){
     /* build the page structure */
     set_vidmap_PDE();
 
-    /* load the memory location in to scree_start */
+    /* load the memory location into scree_start */
     *screen_start = (uint8_t*)USER_VIDMEM_START;
     return 0;
 }

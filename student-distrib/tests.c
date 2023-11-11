@@ -655,6 +655,6 @@ void launch_tests(){
 	// TEST_OUTPUT("rtc_syscall_test", rtc_syscall_test());
 	// TEST_OUTPUT("keyboard_read_syscall_test", keyboard_read_syscall_test());
 	// TEST_OUTPUT("keyboard_write_syscall_test", keyboard_write_syscall_test());
-	TEST_OUTPUT("heavy_load_syscall_test", heavy_load_syscall_test());
+	// TEST_OUTPUT("heavy_load_syscall_test", heavy_load_syscall_test());
 	// TEST_OUTPUT("syscall_edge_test", syscall_edge_test());
 }

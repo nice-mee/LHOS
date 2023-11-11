@@ -27,9 +27,8 @@ void paging_init(){
     }
 
     // Set the video memory page.
-    int vid_mem_pos = (VID_MEM_ADDR >> 12);
-    page_table[vid_mem_pos].P    = 1;
-    page_table[vid_mem_pos].ADDR = vid_mem_pos;
+    page_table[VID_MEM_POS].P    = 1;
+    page_table[VID_MEM_POS].ADDR = VID_MEM_POS;
 
     // Initialize page directories
     for (i = 0; i < DIR_TBL_SIZE; i++) {

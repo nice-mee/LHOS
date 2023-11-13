@@ -96,3 +96,11 @@
 > 	Initially, I check my code carefully and make sure that every open operation for each specific type checks the validness of input as I thought the fd is directly passed into the open operation. However, I suddenly find that it needs to find corresponding file descriptor first in fd_array before calling the open operation.
 > **Solution** 
 > 	The solution is to check the validness of fd before calling open operation, while the validness for other input parameter can be left to the open operation.
+
+>[!Bug 10]
+> **Description** 
+> 	The output of fish is always Page Fault.
+> **Analysis** 
+> 	Initially, I check my code carefully and make sure the page structure is set up correctly. However, after checking, I find that I only set the PDE entry of vidmap page structure without setting the PTE entry of vidmap.
+> **Solution** 
+> 	The solution is to set the PTE entry after setting PDE entry, including letting ADDR field pointing to physical video memory, setting P field to 1 to indicate PTE is activated and so on.

@@ -4,7 +4,7 @@
 #include "filesys.h"
 
 #define NUM_FILES 8
-#define MAX_PID_NUM 3
+#define MAX_PID_NUM 6
 #define FOUR_MB 0x400000
 #define EIGHT_MB 0x800000
 #define EIGHT_KB 0x2000

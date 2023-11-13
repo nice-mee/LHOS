@@ -89,7 +89,7 @@
  *                wish there's no more bug
  */
 
->[!Bug 7]
+>[!Bug 9]
 > **Description** 
 > 	The output of syscall_edge_test is always FAIL when it handle "__syscall_read(-1, buf1, 100) != -1".
 > **Analysis** 

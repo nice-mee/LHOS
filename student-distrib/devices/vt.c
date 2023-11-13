@@ -34,13 +34,13 @@ operation_table_t stdin_operation_table = {
     .open_operation = vt_open,
     .close_operation = vt_close,
     .read_operation = vt_read,
-    .write_operation = vt_write
+    .write_operation = bad_write_call
 };
 
 operation_table_t stdout_operation_table = {
     .open_operation = vt_open,
     .close_operation = vt_close,
-    .read_operation = vt_read,
+    .read_operation = bad_read_call,
     .write_operation = vt_write
 };
 
@@ -349,4 +349,26 @@ void vt_putc(char c) {
     }
     redraw_cursor();
     restore_flags(flags);
+}
+
+/* bad_read_call
+ *   DESCRIPTION: return -1 as this function should not be called
+ *   INPUTS: all meaningless
+ *   OUTPUTS: none
+ *   RETURN VALUE: -1
+ *   SIDE EFFECTS: none
+ */
+int32_t bad_read_call(int32_t fd, void* buf, int32_t nbytes) {
+    return -1;
+}
+
+/* bad_write_call
+ *   DESCRIPTION: return -1 as this function should not be called
+ *   INPUTS: all meaningless
+ *   OUTPUTS: none
+ *   RETURN VALUE: -1
+ *   SIDE EFFECTS: none
+ */
+int32_t bad_write_call(int32_t fd, const void* buf, int32_t nbytes) {
+    return -1;
 }

@@ -168,6 +168,7 @@ int32_t __syscall_execute(const uint8_t* command) {
     cli();
     int pid = get_available_pid();
     if (pid == -1) {
+        sti();
         return INVALID_CMD; // no available pid
     }
     set_user_PDE(pid);
@@ -303,6 +304,7 @@ int32_t __syscall_close(int32_t fd){
     if(fd >= NUM_FILES || fd < 2)
         return -1;
     pcb_t* cur_pcb = get_current_pcb();
+    if(cur_pcb->fd_array[fd].flags != IN_USE) return -1;
     return cur_pcb->fd_array[fd].operation_table->close_operation(fd);
 }
 
@@ -354,14 +356,14 @@ int32_t __syscall_getargs(uint8_t* buf, int32_t nbytes){
     return 0;
 }
 
-int32_t __syscall_vidmap(int32_t fd){
-    return 0;
+int32_t __syscall_vidmap(uint8_t** screen_start){
+    return -1;
 }
 
-int32_t __syscall_set_handler(int32_t fd){
-    return 0;
+int32_t __syscall_set_handler(int32_t signum, void* handler_address){
+    return -1;
 }
 
-int32_t __syscall_sigreturn(int32_t fd){
-    return 0;
+int32_t __syscall_sigreturn(void){
+    return -1;
 }

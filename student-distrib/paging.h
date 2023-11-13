@@ -13,6 +13,7 @@
 #define PAGE_TBL_SIZE 1024
 #define VID_MEM_ADDR 0xB8000
 #define KERNEL_ADDR 0x400000
+#define VID_MEM_POS (VID_MEM_ADDR >> 12)
 
 
 /*
@@ -50,7 +51,8 @@ typedef struct page_table_entry {
 
 // Define the page directory and page table.
 PDE_t page_directory[DIR_TBL_SIZE] __attribute__((aligned(PAGE_SIZE)));
-PTE_t page_table[DIR_TBL_SIZE] __attribute__((aligned(PAGE_SIZE)));
+PTE_t page_table[PAGE_TBL_SIZE] __attribute__((aligned(PAGE_SIZE)));
+PTE_t vidmap_table[PAGE_TBL_SIZE] __attribute__((aligned(PAGE_SIZE)));
 
 void paging_init();
 

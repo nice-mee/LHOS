@@ -13,6 +13,7 @@
 #define USER_STACK_START (_128_MB + FOUR_MB)
 #define EXECUTABLE_START 0x08048000
 #define ARG_LEN 128
+#define USER_VIDMEM_START (_128_MB + FOUR_MB)
 
 typedef struct pcb_s pcb_t;
 struct pcb_s {

@@ -4,8 +4,6 @@
 #include "../filesys.h"
 #include "../pcb.h"
 
-uint32_t rtc_time_counter;
-
 /* struct storing frequency and counter for process with
 different frequencies. Used to implement virtualization */
 typedef struct {
@@ -46,7 +44,6 @@ void RTC_init(void) {
     outb(RTC_A, RTC_PORT);     // set the index again
     outb((prev & 0xF0) | RTC_BASE_RATE, RTC_CMOS_PORT);  // set the frequency to 2 Hz
 
-    rtc_time_counter = 0;
     enable_irq(RTC_IRQ);
 }
 
@@ -64,7 +61,6 @@ void RTC_init(void) {
 void __intr_RTC_handler(void) {
     cli();
     send_eoi(RTC_IRQ);
-    rtc_time_counter ++;
     int32_t pid;
     /* update each process's counter */
     for (pid = 0; pid < MAX_PROC_NUM; ++pid) {
@@ -82,12 +78,12 @@ void __intr_RTC_handler(void) {
  * setting the RTC frequency to 2Hz and validating the process's ID if the fd_array
  * has empty space
  * Parameters:
- *    proc_id: meaningless here
+ *    fd: meaningless here
  * Returns: file descriptor for success, -1 for failure
  * Side Effects: 1. sets the RTC frequency for the process to 2Hz
  *               2. validates the process's id
  */
-int32_t RTC_open(const uint8_t* proc_id) {
+int32_t RTC_open(const uint8_t* fd) {
     int32_t i;
     pcb_t* cur_pcb = get_current_pcb();
     file_descriptor_t* cur_fd;
@@ -114,24 +110,24 @@ int32_t RTC_open(const uint8_t* proc_id) {
  * Description: invalidates the process's RTC by 
  * marking its id as invalid.
  * Parameters:
- *    proc_id: id of the process
+ *    fd: file descriptor
  * Returns: 0 for success, -1 for failure
  * Side Effects: set the process's id invalid
  */
-int32_t RTC_close(int32_t proc_id) {
+int32_t RTC_close(int32_t fd) {
     pcb_t* cur_pcb = get_current_pcb();
     file_descriptor_t* cur_fd;
     /* if if out of boundary, close fail */
-    if(proc_id < 2 || proc_id >= NUM_FILES) return -1;
+    if(fd < 2 || fd >= NUM_FILES) return -1;
 
-    cur_fd = &(cur_pcb->fd_array[proc_id]);
+    cur_fd = &(cur_pcb->fd_array[fd]);
     /* if that id is invalid, close fail */
     if(cur_fd->flags != IN_USE || cur_fd->inode_index != 0) return -1;
 
     /* free that file descriptor if every thing all right */
     cur_fd->flags = READY_TO_BE_USED;
     /* invalidate the process's existence status */
-    RTC_proc_list[proc_id].proc_exist = 0;
+    RTC_proc_list[cur_pcb->pid].proc_exist = 0;
     return 0;
 }
 
@@ -139,18 +135,19 @@ int32_t RTC_close(int32_t proc_id) {
  * Function: RTC_read
  * Description: block until the next interrupt occurs for the process
  * Parameters:
- *    proc_id: id of the process
+ *    fd: file descriptor
  *    buf: ignored
  *    nbytes: ignored
  * Returns:
  *    0 for success
  * Side Effects: block until the next interrupt occurs for the process
  */
-int32_t RTC_read(int32_t proc_id, void* buf, int32_t nbytes) {
+int32_t RTC_read(int32_t fd, void* buf, int32_t nbytes) {
     /* if proc_id out of boundary, read fails */
-    if(proc_id < 2 || proc_id >= MAX_PROC_NUM) return -1;
+    if(fd < 2 || fd >= MAX_PROC_NUM) return -1;
 
     /* virtualization: wait counter reaches zero */
+    int32_t proc_id = get_current_pid();
     while(RTC_proc_list[proc_id].proc_count > 0);
     /* reset counter */
     cli();
@@ -164,17 +161,17 @@ int32_t RTC_read(int32_t proc_id, void* buf, int32_t nbytes) {
  * Function: RTC_write
  * Description: adjusts the RTC frequency for a specific process
  * Parameters:
- *    proc_id: Identifier ID of the process
+ *    fd: file descriptor
  *    buf: ptr to the value of the intended frequency
  *    nbytes: ignored
  * Returns:
  *    0 for success, -1 for invalid arguments
  * Side Effects: adjusts the freq for the process
  */
-int32_t RTC_write(int32_t proc_id, const void* buf, int32_t nbytes) {
+int32_t RTC_write(int32_t fd, const void* buf, int32_t nbytes) {
     int32_t freq;
     /* if buf is NULL or proc_id out of boundary, write fails */
-    if(proc_id < 2 || proc_id >= MAX_PROC_NUM || buf == NULL) return -1;
+    if(fd < 2 || fd >= MAX_PROC_NUM || buf == NULL) return -1;
     
     freq = *(int32_t*) buf;
     if(freq <= 0) return -1;
@@ -183,6 +180,7 @@ int32_t RTC_write(int32_t proc_id, const void* buf, int32_t nbytes) {
         return -1;
     }
     /* adjusts the freq */
+    int32_t proc_id = get_current_pid();
     cli();
     RTC_proc_list[proc_id].proc_freq = freq;
     RTC_proc_list[proc_id].proc_count = RTC_BASE_FREQ / RTC_proc_list[proc_id].proc_freq;

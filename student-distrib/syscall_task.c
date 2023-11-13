@@ -184,7 +184,9 @@ int32_t __syscall_execute(const uint8_t* command) {
     // Create PCB
     pcb_t* parent_pcb = get_current_pcb();
     pcb_t* cur_pcb = create_pcb(pid, parent_pcb);
-    
+    /* Write arguments in pcb */
+    memcpy(cur_pcb->args, args, ARG_LEN + 1);
+
     // set TSS
     tss.ss0 = KERNEL_DS;
     tss.esp0 = EIGHT_MB - cur_pcb->pid * EIGHT_KB;
@@ -343,7 +345,15 @@ int32_t __syscall_write(int32_t fd, const void* buf, int32_t nbytes){
 }
 
 int32_t __syscall_getargs(uint8_t* buf, int32_t nbytes){
-    return -1;
+    if(buf == NULL) {
+        return -1;
+    }
+    pcb_t* cur_pcb = get_current_pcb();
+    if(cur_pcb == NULL || cur_pcb->args[0] == 0 || strlen((const int8_t *) cur_pcb->args) > nbytes) {
+        return -1;
+    }
+    memcpy(buf, cur_pcb->args, nbytes > ARG_LEN ? ARG_LEN : nbytes);
+    return 0;
 }
 
 int32_t __syscall_vidmap(uint8_t** screen_start){

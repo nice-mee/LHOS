@@ -6,7 +6,6 @@
 #include "devices/rtc.h"
 
 #define FILE_NAME_LEN 32  // 32B to store file name in FS
-#define ARG_LEN     1024
 #define MAX_ARG_NUM 24
 #define INVALID_CMD -1
 
@@ -25,7 +24,7 @@ int32_t __syscall_close(int32_t fd);
 int32_t __syscall_read(int32_t fd, void* buf, int32_t nbytes);
 int32_t __syscall_write(int32_t fd, const void* buf, int32_t nbytes);
 
-int32_t __syscall_getargs(int32_t fd);
+int32_t __syscall_getargs(uint8_t* buf, int32_t nbytes);
 int32_t __syscall_vidmap(int32_t fd);
 int32_t __syscall_set_handler(int32_t fd);
 int32_t __syscall_sigreturn(int32_t fd);

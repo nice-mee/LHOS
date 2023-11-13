@@ -347,7 +347,7 @@ int32_t __syscall_getargs(uint8_t* buf, int32_t nbytes){
         return -1;
     }
     pcb_t* cur_pcb = get_current_pcb();
-    if(cur_pcb == NULL || cur_pcb->args[0] == 0 || strlen(pcb->arg) > nbytes) {
+    if(cur_pcb == NULL || cur_pcb->args[0] == 0 || strlen((const int8_t *) cur_pcb->args) > nbytes) {
         return -1;
     }
     memcpy(buf, cur_pcb->args, nbytes > ARG_LEN ? ARG_LEN : nbytes);

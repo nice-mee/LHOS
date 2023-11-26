@@ -21,6 +21,6 @@ Bits
 #define PIT_IRQ 0
 
 void pit_init(void);
-void __intr_PIT_handler(void)
+void __intr_PIT_handler(void);
 
 #endif

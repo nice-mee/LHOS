@@ -1,5 +1,6 @@
 #include "pit.h"
-#include "pic.h"
+#include "../i8259.h"
+#include "../lib.h"
 
 /* PIT_init - Initialization of Programmable Interval Timer (PIT)
  * 

@@ -168,7 +168,7 @@ int32_t puts(int8_t* s) {
  * Return Value: void
  *  Function: Output a character to the console */
 void putc(uint8_t c) {
-    vt_putc(c);
+    vt_putc(c, 0);
 }
 
 /* int8_t* itoa(uint32_t value, int8_t* buf, int32_t radix);

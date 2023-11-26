@@ -117,6 +117,9 @@ int32_t vt_read(int32_t fd, void* buf, int32_t nbytes) {
     if (buf == NULL || nbytes < 0 || fd != 0)
         return -1;
 
+    cli();
+    vt_state[cur_vt].input_buf_ptr = 0;
+    sti();
     // Wait for enter key
     while (!vt_state[cur_vt].enter_pressed);
 

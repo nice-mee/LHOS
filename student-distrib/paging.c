@@ -39,9 +39,15 @@ void paging_init(){
         vidmap_table[i].ADDR = 0;
     }
 
-    // Set the video memory page.
+    // Set four video memory pages (1 for display, 3 for backup).
     page_table[VID_MEM_POS].P    = 1;
     page_table[VID_MEM_POS].ADDR = VID_MEM_POS;
+    page_table[VID_MEM_POS + 1].P = 1;
+    page_table[VID_MEM_POS + 1].ADDR = VID_MEM_POS + 1;
+    page_table[VID_MEM_POS + 2].P = 1;
+    page_table[VID_MEM_POS + 2].ADDR = VID_MEM_POS + 2;
+    page_table[VID_MEM_POS + 3].P = 1;
+    page_table[VID_MEM_POS + 3].ADDR = VID_MEM_POS + 3;
 
     // Initialize page directories
     for (i = 0; i < DIR_TBL_SIZE; i++) {

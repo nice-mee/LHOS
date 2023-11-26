@@ -4,6 +4,8 @@
 #include "vt.h"
 
 #define VIDEO       0xB8000
+#define FOUR_KB     0x1000
+#define VID_BUF_SIZE (80 * 25 * 2)
 #define NUM_COLS    80
 #define NUM_ROWS    25
 #define ATTRIB      0x7
@@ -47,7 +49,6 @@ operation_table_t stdout_operation_table = {
 typedef struct {
     int screen_x;
     int screen_y;
-    // char screen[80][25];
     char* video_mem;
     keyboard_state_t kbd;
     char input_buf[INPUT_BUF_SIZE]; // Temporary buffer for storing user input
@@ -57,8 +58,9 @@ typedef struct {
     int nbytes_read;
 } vt_state_t;
 
-static vt_state_t vt_state[1];
+static vt_state_t vt_state[NUM_TERMS];
 static int cur_vt = 0;
+static int foreground_vt = 0;
 
 /* vt_init
  *   DESCRIPTION: Initialize virtual terminal.
@@ -69,15 +71,19 @@ static int cur_vt = 0;
  *   SIDE EFFECTS: none
  */
 void vt_init(void) {
-    vt_state[cur_vt].screen_x = 0;
-    vt_state[cur_vt].screen_y = 0;
-    vt_state[cur_vt].video_mem = (char*)VIDEO;
-    vt_state[cur_vt].kbd.shift = 0;
-    vt_state[cur_vt].kbd.caps = 0;
-    vt_state[cur_vt].kbd.ctrl = 0;
-    vt_state[cur_vt].kbd.alt = 0;
-    vt_state[cur_vt].input_buf_ptr = 0;
-    vt_state[cur_vt].enter_pressed = 0;
+    int i;
+    for (i = 0; i < NUM_TERMS; i++) {
+        vt_state[i].screen_x = 0;
+        vt_state[i].screen_y = 0;
+        vt_state[i].video_mem = (char*)(VIDEO + (i + 1) * FOUR_KB);
+        vt_state[i].kbd.shift = 0;
+        vt_state[i].kbd.caps = 0;
+        vt_state[i].kbd.ctrl = 0;
+        vt_state[i].kbd.alt = 0;
+        vt_state[i].input_buf_ptr = 0;
+        vt_state[i].enter_pressed = 0;
+    }
+    vt_state[0].video_mem = (char*)VIDEO;
 }
 
 /* vt_open
@@ -154,7 +160,7 @@ int32_t vt_write(int32_t fd, const void* buf, int32_t nbytes) {
         return -1;
     int i;
     for (i = 0; i < nbytes; i++) {
-        vt_putc(((char*)buf)[i]);
+        vt_putc(((char*)buf)[i], 0);
     }
     return i;
 }
@@ -180,56 +186,68 @@ static void scroll_page(void) {
 
 /* print_newline (PRIVATE)
  *   DESCRIPTION: Print a newline character on the screen.
- *   INPUTS: none
+ *   INPUTS: term_idx -- the terminal to write
  *   OUTPUTS: none
  *   RETURN VALUE: none
  *   SIDE EFFECTS: video memory is modified if scrooling happens
  */
-static void print_newline(void) {
-    vt_state[cur_vt].screen_y++;
-    vt_state[cur_vt].screen_x = 0;
-    if (vt_state[cur_vt].screen_y >= NUM_ROWS) {
+static void print_newline(int term_idx) {
+    vt_state[term_idx].screen_y++;
+    vt_state[term_idx].screen_x = 0;
+    if (vt_state[term_idx].screen_y >= NUM_ROWS) {
         scroll_page();
-        vt_state[cur_vt].screen_y = NUM_ROWS - 1;
+        vt_state[term_idx].screen_y = NUM_ROWS - 1;
     }
 }
 
 /* print_backspace (PRIVATE)
  *   DESCRIPTION: Print a backspace character on the screen.
- *   INPUTS: none
+ *   INPUTS: term_idx -- the terminal to write
  *   OUTPUTS: none
  *   RETURN VALUE: none
  *   SIDE EFFECTS: video memory is modified
  */
-static void print_backspace(void) {
-    char * video_mem = vt_state[cur_vt].video_mem;
-    vt_state[cur_vt].screen_x--;
-    if (vt_state[cur_vt].screen_x < 0) {
-        vt_state[cur_vt].screen_x = NUM_COLS - 1;
-        vt_state[cur_vt].screen_y--;
-        if (vt_state[cur_vt].screen_y < 0) { // In theory this should never happen
-            vt_state[cur_vt].screen_y = 0;
-            vt_state[cur_vt].screen_x = 0;
+static void print_backspace(int term_idx) {
+    char * video_mem = vt_state[term_idx].video_mem;
+    vt_state[term_idx].screen_x--;
+    if (vt_state[term_idx].screen_x < 0) {
+        vt_state[term_idx].screen_x = NUM_COLS - 1;
+        vt_state[term_idx].screen_y--;
+        if (vt_state[term_idx].screen_y < 0) { // In theory this should never happen
+            vt_state[term_idx].screen_y = 0;
+            vt_state[term_idx].screen_x = 0;
         }
     }
-    *(uint8_t *)(video_mem + ((NUM_COLS * vt_state[cur_vt].screen_y + vt_state[cur_vt].screen_x) << 1)) = ' ';
-    *(uint8_t *)(video_mem + ((NUM_COLS * vt_state[cur_vt].screen_y + vt_state[cur_vt].screen_x) << 1) + 1) = ATTRIB;
+    *(uint8_t *)(video_mem + ((NUM_COLS * vt_state[term_idx].screen_y + vt_state[term_idx].screen_x) << 1)) = ' ';
+    *(uint8_t *)(video_mem + ((NUM_COLS * vt_state[term_idx].screen_y + vt_state[term_idx].screen_x) << 1) + 1) = ATTRIB;
 }
 
 /* redraw_cursor (PRIVATE)
  *   DESCRIPTION: Redraw the cursor on the screen.
- *   INPUTS: none
+ *   INPUTS: term_idx -- the terminal to write
  *   OUTPUTS: none
  *   RETURN VALUE: none
  *   SIDE EFFECTS: video memory is modified
  */
-static void redraw_cursor(void) {
-    uint16_t pos = vt_state[cur_vt].screen_y * NUM_COLS + vt_state[cur_vt].screen_x;
+static void redraw_cursor(int term_idx) {
+    uint16_t pos = vt_state[term_idx].screen_y * NUM_COLS + vt_state[term_idx].screen_x;
 
 	outb(0x0F, 0x3D4);
 	outb((uint8_t) (pos & 0xFF), 0x3D5);
 	outb(0x0E, 0x3D4);
 	outb((uint8_t) ((pos >> 8) & 0xFF), 0x3D5);
+}
+
+
+void vt_switch_term(int32_t term_idx)
+{
+    memcpy((char *)(VIDEO + (foreground_vt + 1) * FOUR_KB), (char *)(VIDEO), VID_BUF_SIZE);
+    clear();
+    memcpy((char *)(VIDEO), (char *)(VIDEO + (term_idx + 1) * FOUR_KB), VID_BUF_SIZE);
+    vt_state[foreground_vt].video_mem = (char *)(VIDEO + (foreground_vt + 1) * FOUR_KB);
+    vt_state[term_idx].video_mem = (char *)(VIDEO);
+    redraw_cursor(term_idx);
+    foreground_vt = term_idx;
 }
 
 /* process_default (PRIVATE)
@@ -247,33 +265,33 @@ static void process_default(keycode_t keycode, int release) {
         return;
     
     // Handle special key combinations
-    if (vt_state[cur_vt].kbd.ctrl && keycode == KEY_L) { // Ctrl + L
+    if (vt_state[foreground_vt].kbd.ctrl && keycode == KEY_L) { // Ctrl + L
         clear();
-        vt_state[cur_vt].input_buf_ptr = 0; // Reset input buffer pointer
-        vt_state[cur_vt].screen_x = 0;
-        vt_state[cur_vt].screen_y = 0;
-        redraw_cursor();
+        vt_state[foreground_vt].input_buf_ptr = 0; // Reset input buffer pointer
+        vt_state[foreground_vt].screen_x = 0;
+        vt_state[foreground_vt].screen_y = 0;
+        redraw_cursor(foreground_vt);
         return;
     }
 
     /* Echo printable characters */
     if (keycode == KEY_RESERVED || keycode > KEY_SPACE) // KEY_SPACE is the last printable character in keycode table
         return;
-    if (vt_state[cur_vt].input_buf_ptr >= INPUT_BUF_SIZE - 1) // -1 because we need to reserve space for '\n'
+    if (vt_state[foreground_vt].input_buf_ptr >= INPUT_BUF_SIZE - 1) // -1 because we need to reserve space for '\n'
         return;
 
     char c;
     if (keycode >= KEY_A && keycode <= KEY_Z) {
         // A-Z should be affected by caps lock as well
-        c = keycode_to_printable_char[vt_state[cur_vt].kbd.shift ^ vt_state[cur_vt].kbd.caps][keycode];
-        vt_putc(c);
+        c = keycode_to_printable_char[vt_state[foreground_vt].kbd.shift ^ vt_state[foreground_vt].kbd.caps][keycode];
+        vt_putc(c, 1);
     } else {
         // Other keys should not be affected by caps lock
-        c = keycode_to_printable_char[vt_state[cur_vt].kbd.shift][keycode];
-        vt_putc(c);
+        c = keycode_to_printable_char[vt_state[foreground_vt].kbd.shift][keycode];
+        vt_putc(c, 1);
     }
-    vt_state[cur_vt].input_buf[vt_state[cur_vt].input_buf_ptr] = c;
-    vt_state[cur_vt].input_buf_ptr++;
+    vt_state[foreground_vt].input_buf[vt_state[foreground_vt].input_buf_ptr] = c;
+    vt_state[foreground_vt].input_buf_ptr++;
 }
 
 /* vt_keyboard
@@ -288,30 +306,40 @@ void vt_keyboard(keycode_t keycode, int release) {
     switch (keycode) {
         case KEY_LEFTSHIFT:
         case KEY_RIGHTSHIFT:
-            vt_state[cur_vt].kbd.shift = !release;
+            vt_state[foreground_vt].kbd.shift = !release;
             break;
         case KEY_LEFTCTRL:
-            vt_state[cur_vt].kbd.ctrl = !release;
+            vt_state[foreground_vt].kbd.ctrl = !release;
             break;
         case KEY_CAPSLOCK:
             if (!release)
-                vt_state[cur_vt].kbd.caps = !vt_state[cur_vt].kbd.caps;
+                vt_state[foreground_vt].kbd.caps = !vt_state[foreground_vt].kbd.caps;
             break;
         case KEY_ENTER:
             if (!release) {
-                vt_putc('\n');
-                vt_state[cur_vt].input_buf[vt_state[cur_vt].input_buf_ptr] = '\n';
-                vt_state[cur_vt].input_buf_ptr++;
-                vt_state[cur_vt].nbytes_read = vt_state[cur_vt].input_buf_ptr; // Store number of bytes read
-                memcpy(vt_state[cur_vt].user_buf, vt_state[cur_vt].input_buf, vt_state[cur_vt].nbytes_read * sizeof(char)); // Copy input buffer to user buffer
-                vt_state[cur_vt].input_buf_ptr = 0; // Reset input buffer pointer
-                vt_state[cur_vt].enter_pressed = 1; // Signal read() that enter is pressed
+                vt_putc('\n', 1);
+                vt_state[foreground_vt].input_buf[vt_state[foreground_vt].input_buf_ptr] = '\n';
+                vt_state[foreground_vt].input_buf_ptr++;
+                vt_state[foreground_vt].nbytes_read = vt_state[foreground_vt].input_buf_ptr; // Store number of bytes read
+                memcpy(vt_state[foreground_vt].user_buf, vt_state[foreground_vt].input_buf, vt_state[foreground_vt].nbytes_read * sizeof(char)); // Copy input buffer to user buffer
+                vt_state[foreground_vt].input_buf_ptr = 0; // Reset input buffer pointer
+                vt_state[foreground_vt].enter_pressed = 1; // Signal read() that enter is pressed
             }
             break;
         case KEY_BACKSPACE:
-            if (!release && vt_state[cur_vt].input_buf_ptr > 0) {
-                vt_putc('\b');
-                vt_state[cur_vt].input_buf_ptr--;
+            if (!release && vt_state[foreground_vt].input_buf_ptr > 0) {
+                vt_putc('\b', 1);
+                vt_state[foreground_vt].input_buf_ptr--;
+            }
+            break;
+        case KEY_LEFTALT:
+            vt_state[foreground_vt].kbd.alt = !release;
+            break;
+        case KEY_F1:
+        case KEY_F2:
+        case KEY_F3:
+            if (!release && vt_state[foreground_vt].kbd.alt) {
+                vt_switch_term(keycode - KEY_F1);
             }
             break;
         case KEY_TAB:
@@ -329,29 +357,36 @@ void vt_keyboard(keycode_t keycode, int release) {
                   Can handle backspace.
                   Rejects null character.
  *   INPUTS: c -- character to put on the screen
+             kbd -- indicate whether this request is from keyboard interrupt
  *   OUTPUTS: none
  *   RETURN VALUE: none
  *   SIDE EFFECTS: none
  */
-void vt_putc(char c) {
+void vt_putc(char c, int kbd) {
     if (c == '\0')
         return;
     unsigned long flags;
     cli_and_save(flags);
+    int term_idx = (kbd) ? (foreground_vt) : (cur_vt);
     if (c == '\n' || c == '\r') {
-        print_newline();
+        print_newline(term_idx);
     } else if (c == '\b') {
-        print_backspace();
+        print_backspace(term_idx);
     } else {
-        char * video_mem = vt_state[cur_vt].video_mem;
-        *(uint8_t *)(video_mem + ((NUM_COLS * vt_state[cur_vt].screen_y + vt_state[cur_vt].screen_x) << 1)) = c;
-        *(uint8_t *)(video_mem + ((NUM_COLS * vt_state[cur_vt].screen_y + vt_state[cur_vt].screen_x) << 1) + 1) = ATTRIB;
-        vt_state[cur_vt].screen_x++;
-        if (vt_state[cur_vt].screen_x >= NUM_COLS)
-            print_newline();
+        char * video_mem = vt_state[term_idx].video_mem;
+        *(uint8_t *)(video_mem + ((NUM_COLS * vt_state[term_idx].screen_y + vt_state[term_idx].screen_x) << 1)) = c;
+        *(uint8_t *)(video_mem + ((NUM_COLS * vt_state[term_idx].screen_y + vt_state[term_idx].screen_x) << 1) + 1) = ATTRIB;
+        vt_state[term_idx].screen_x++;
+        if (vt_state[term_idx].screen_x >= NUM_COLS)
+            print_newline(term_idx);
     }
-    redraw_cursor();
+    redraw_cursor(term_idx);
     restore_flags(flags);
+}
+
+void vt_set_active_term(int32_t term_idx)
+{
+    cur_vt = term_idx;
 }
 
 /* bad_read_call

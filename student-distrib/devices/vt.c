@@ -59,6 +59,7 @@ typedef struct {
     uint32_t active_pid; // default as -1
     uint32_t esp;
     uint32_t ebp;
+    uint32_t halt_pending;
 } vt_state_t;
 
 static vt_state_t vt_state[NUM_TERMS];
@@ -86,6 +87,7 @@ void vt_init(void) {
         vt_state[i].input_buf_ptr = 0;
         vt_state[i].enter_pressed = 0;
         vt_state[i].active_pid = -1;
+        vt_state[i].halt_pending = 0;
     }
     vt_state[0].video_mem = (char*)VIDEO;
 }
@@ -292,6 +294,11 @@ static void process_default(keycode_t keycode, int release) {
         return;
     }
 
+    if (vt_state[foreground_vt].kbd.ctrl && keycode == KEY_C) { // Ctrl + C
+        vt_state[foreground_vt].halt_pending = 1;
+        return;
+    }
+
     /* Echo printable characters */
     if (keycode == KEY_RESERVED || keycode > KEY_SPACE) // KEY_SPACE is the last printable character in keycode table
         return;
@@ -411,6 +418,11 @@ void vt_putc(char c, int kbd) {
  */
 int32_t vt_set_active_term(uint32_t cur_esp, uint32_t cur_ebp)
 {
+    if (vt_state[cur_vt].halt_pending) {
+        vt_state[cur_vt].halt_pending = 0;
+        __syscall_halt(0);
+    }
+
     /* save esp and pid of current process on the current terminal */
     vt_state[cur_vt].esp = cur_esp;
     vt_state[cur_vt].ebp = cur_ebp;
@@ -419,7 +431,7 @@ int32_t vt_set_active_term(uint32_t cur_esp, uint32_t cur_ebp)
     uint32_t nxt_pid = vt_state[cur_vt].active_pid;
 
     if(nxt_pid == -1) { // there's no process running on the nxt terminal
-        __syscall_execute("shell"); // execute a shell then
+        __syscall_execute((uint8_t*)"shell"); // execute a shell then
     }
 
     /* remap video memory */

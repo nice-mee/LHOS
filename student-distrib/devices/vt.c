@@ -56,6 +56,8 @@ typedef struct {
     volatile int enter_pressed;
     char user_buf[INPUT_BUF_SIZE]; // Buffer for storing user input after enter is pressed
     int nbytes_read;
+    uint32_t active_pid = -1; // default as -1
+    int esp;
 } vt_state_t;
 
 static vt_state_t vt_state[NUM_TERMS];
@@ -384,9 +386,51 @@ void vt_putc(char c, int kbd) {
     restore_flags(flags);
 }
 
-void vt_set_active_term(int32_t term_idx)
-{
-    cur_vt = term_idx;
+/* vt_set_active_term
+ *   DESCRIPTION:
+ *   INPUTS: the idx of the terminal to switch to
+ *   OUTPUTS: none
+ *   RETURN VALUE: the next pid
+ *   SIDE EFFECTS: switch to another virtual terminal 
+ */
+int32_t vt_set_active_term()
+{   
+    /* save esp and pid of current process on the current terminal */
+    pcb_t* cur_pcb = get_current_pcb();
+    uint32_t cur_pid = cur_pcb->pid;
+
+    asm volatile("movl %%esp, %0":"=r" (vt_state[cur_vt].esp));
+    vt_state[cur_vt].active_pid = cur_pid;
+
+    cur_vt = (cur_vt +1) % NUM_TERMS; // get the idx of next terminal
+    uint32_t nxt_pid = vt_state[cur_vt].active_pid;
+
+    if(nxt_pid == -1) { // there's no process running on the nxt terminal
+        __syscall_execute("shell"); // execute a shell then
+    }
+
+    /* remap video memory */
+    if(cur_vt == foreground_vt) { // cur_vt displayed, write on the video memory
+        page_table[VID_MEM_POS].ADDR = VID_MEM_POS;
+        vidmap_table[VID_MEM_POS].ADDR = VID_MEM_POS;
+    } 
+    else { // cur_vt not displayed, write on the buffer
+        
+        
+    }
+
+    // flushing TLB by reloading CR3 register
+    asm volatile (
+        "movl %%cr3, %%eax;"  // Move the value of CR3 into EBX
+        "movl %%eax, %%cr3;"  // Move the value from EBX back to CR3
+        : : : "eax", "memory"
+    );
+    return nxt_pid;
+}
+
+/* set the active_pid of a vt*/
+void vt_set_active_pid(int pid) {
+    vt_state[cur_vt].active_pid = pid; 
 }
 
 /* bad_read_call

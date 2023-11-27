@@ -19,8 +19,9 @@ extern void vt_keyboard(keycode_t keycode, int release);
 void vt_putc(char c, int kdb);
 extern int32_t bad_read_call(int32_t fd, void* buf, int32_t nbytes);
 extern int32_t bad_write_call(int32_t fd, const void* buf, int32_t nbytes);
-extern int32_t vt_set_active_term();
+extern int32_t vt_set_active_term(uint32_t cur_esp, uint32_t cur_ebp);
 extern void vt_set_active_pid(int pid);
+void vt_get_ebp_esp(uint32_t *esp, uint32_t *ebp);
 
 extern operation_table_t stdin_operation_table;
 extern operation_table_t stdout_operation_table;

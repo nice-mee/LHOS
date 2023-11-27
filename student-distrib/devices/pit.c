@@ -1,6 +1,7 @@
 #include "pit.h"
 #include "../i8259.h"
 #include "../lib.h"
+#include "../scheduler.h"
 
 /* PIT_init - Initialization of Programmable Interval Timer (PIT)
  * 
@@ -27,4 +28,5 @@ void pit_init(void) {
  */
 void __intr_PIT_handler(void) {
     send_eoi(PIT_IRQ);
+    scheduler();
 }

@@ -259,6 +259,7 @@ int32_t __syscall_halt(uint8_t status) {
     cli();
     // Restore parent paging
     set_user_PDE(parent_pcb->pid);
+    vt_set_active_pid(parent_pcb->pid);
 
     // Close all FDs
     int i;

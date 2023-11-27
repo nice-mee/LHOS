@@ -57,6 +57,7 @@ void inline interrupt_init() {
 		idt[i].dpl = 0;
 		idt[i].present = 1;
 	}
+    SET_IDT_ENTRY(idt[PIT_VEC], intr_PIT_handler);
     SET_IDT_ENTRY(idt[KEYBOARD_VEC], intr_keyboard_handler);
     SET_IDT_ENTRY(idt[RTC_VEC], intr_RTC_handler);
 }

@@ -27,7 +27,6 @@ static const uint8_t ps2_set1_keycode[128] = {
  *   SIDE EFFECTS: may print a character to the screen
  */
 DEFINE_DEVICE_HANDLER(keyboard) {
-    cli();
     keycode_t keycode;
     int release = 0;
     send_eoi(KEYBOARD_IRQ);
@@ -38,7 +37,6 @@ DEFINE_DEVICE_HANDLER(keyboard) {
     }
     keycode = ps2_set1_keycode[scan_code];
     vt_keyboard(keycode, release);
-    sti();
 }
 
 /* keyboard_init

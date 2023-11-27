@@ -59,7 +59,6 @@ void RTC_init(void) {
  *               test_interrupts() function.
  */
 void __intr_RTC_handler(void) {
-    cli();
     send_eoi(RTC_IRQ);
     int32_t pid;
     /* update each process's counter */
@@ -69,7 +68,6 @@ void __intr_RTC_handler(void) {
     outb(RTC_C &0x0F, RTC_PORT); // select register C
     inb(RTC_CMOS_PORT);		    // just throw away contents
 
-    sti();
 }
 
 /* 

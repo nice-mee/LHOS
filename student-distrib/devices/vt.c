@@ -252,12 +252,20 @@ void vt_switch_term(int32_t term_idx)
     clear();
     memcpy((char *)(VIDEO), (char *)(VIDEO + (term_idx + 1) * FOUR_KB), VID_BUF_SIZE);
     vt_state[foreground_vt].video_mem = (char *)(VIDEO + (foreground_vt + 1) * FOUR_KB);
-    vt_state[term_idx].video_mem = (char *)(VIDEO);
-    foreground_vt = term_idx;
-    redraw_cursor(term_idx);
-    if (cur_vt == term_idx || cur_vt == foreground_vt) {
+    if (cur_vt == foreground_vt) {
         vidmap_table[0].ADDR = (uint32_t)vt_state[cur_vt].video_mem >> 12; // Update the current vt vidmem 
     }
+    vt_state[term_idx].video_mem = (char *)(VIDEO);
+    if (cur_vt == term_idx) {
+        vidmap_table[0].ADDR = (uint32_t)vt_state[cur_vt].video_mem >> 12; // Update the current vt vidmem 
+    }
+    foreground_vt = term_idx;
+    redraw_cursor(term_idx);
+}
+
+uint32_t vt_get_cur_vidmem(void)
+{
+    return (uint32_t)vt_state[cur_vt].video_mem;
 }
 
 /* process_default (PRIVATE)

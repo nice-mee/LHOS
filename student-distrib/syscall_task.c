@@ -248,7 +248,7 @@ int32_t __syscall_execute(const uint8_t* command) {
 int32_t __syscall_halt(uint8_t status) {
     // Restore parent data
     pcb_t* cur_pcb = get_current_pcb();
-    if (cur_pcb->pid == 0) {
+    if (cur_pcb->pid < NUM_TERMS) {
         // If the current process is the first shell, then restart the shell
         cli(); // prevent other processes from stealing the pid
         free_pid(cur_pcb->pid);

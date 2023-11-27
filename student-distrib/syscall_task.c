@@ -32,7 +32,7 @@ static void set_vidmap_PDE(){
     vidmap_table[0].P = 1;
     vidmap_table[0].US = 1;
     vidmap_table[0].G = 0;
-    vidmap_table[0].ADDR = VID_MEM_POS;
+    vidmap_table[0].ADDR = vt_get_cur_vidmem() >> 12;
 
     // flushing TLB by reloading CR3 register
     asm volatile (

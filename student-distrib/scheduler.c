@@ -1,5 +1,16 @@
 #include "scheduler.h"
 
+/* set_user_PDE - Set User-Level Page Directory Entry
+ *
+ * Updates the memory paging structure for the new process
+ *
+ * Inputs: pid: The pid for which the PDE is being set.
+ * Outputs: None
+ * Side Effects:
+ *   - Updates the page directory entry for the user process.
+ *   - Flushing the TLB.
+ */
+
 static void set_user_PDE(uint32_t pid)
 {
     int32_t PDE_index = _128_MB >> 22;
@@ -16,11 +27,26 @@ static void set_user_PDE(uint32_t pid)
     );
 }
 
+/* scheduler - Context Switching Scheduler
+ *
+ * Switches execution from the current terminal and process to the next in a round-robin fashion.
+ *
+ * Inputs: None
+ * Outputs: None (performs a context switch)
+ * Side Effects: 
+ *   - Changes the active terminal
+ *   - Switches the context to another process
+ *   - Updates the memory paging structure for the new process
+ *   - Modifies the TSS to point to the new process's kernel stack
+ */
 void scheduler() {
-    /*Switch to another terminal and corresponding process*/
+    
+    /* save ESP and EBP */
     uint32_t cur_esp, cur_ebp;
     asm volatile("movl %%esp, %0":"=r" (cur_esp));
     asm volatile("movl %%ebp, %0":"=r" (cur_ebp));
+
+    /*Switch to another terminal and corresponding process*/
     int next_pid = vt_set_active_term(cur_esp, cur_ebp);
 
     /* Remap the user program */

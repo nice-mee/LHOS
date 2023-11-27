@@ -32,7 +32,7 @@ static void set_vidmap_PDE(){
     vidmap_table[0].P = 1;
     vidmap_table[0].US = 1;
     vidmap_table[0].G = 0;
-    vidmap_table[0].ADDR = VID_MEM_POS;
+    vidmap_table[0].ADDR = vt_get_cur_vidmem() >> 12;
 
     // flushing TLB by reloading CR3 register
     asm volatile (
@@ -195,6 +195,7 @@ int32_t __syscall_execute(const uint8_t* command) {
         return INVALID_CMD; // no available pid
     }
     set_user_PDE(pid);
+    vt_set_active_pid(pid); // cp5, record the active process of a vt
 
     // User-level Program Loader
     dentry_t cur_dentry;
@@ -247,7 +248,7 @@ int32_t __syscall_execute(const uint8_t* command) {
 int32_t __syscall_halt(uint8_t status) {
     // Restore parent data
     pcb_t* cur_pcb = get_current_pcb();
-    if (cur_pcb->pid == 0) {
+    if (cur_pcb->pid < NUM_TERMS) {
         // If the current process is the first shell, then restart the shell
         cli(); // prevent other processes from stealing the pid
         free_pid(cur_pcb->pid);
@@ -258,6 +259,7 @@ int32_t __syscall_halt(uint8_t status) {
     cli();
     // Restore parent paging
     set_user_PDE(parent_pcb->pid);
+    vt_set_active_pid(parent_pcb->pid);
 
     // Close all FDs
     int i;

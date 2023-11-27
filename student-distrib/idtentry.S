@@ -84,8 +84,13 @@ intr_keyboard_handler:
     pushl $~0x01
     jmp common_interrupt_handler
 
+.globl intr_PIT_handler
+intr_PIT_handler:
+    pushl $~0x00
+    jmp common_interrupt_handler
+
 interrupts:
-    .long 0 # Padding
+    .long __intr_PIT_handler
     .long __intr_keyboard_handler
     .long 0 # Padding
     .long 0 # Padding

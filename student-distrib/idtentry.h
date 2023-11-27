@@ -27,3 +27,4 @@ extern void syscall_handler();
 
 extern void intr_RTC_handler();
 extern void intr_keyboard_handler();
+extern void intr_PIT_handler();

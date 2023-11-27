@@ -56,6 +56,9 @@ typedef struct {
     volatile int enter_pressed;
     char user_buf[INPUT_BUF_SIZE]; // Buffer for storing user input after enter is pressed
     int nbytes_read;
+    uint32_t active_pid; // default as -1
+    uint32_t esp;
+    uint32_t ebp;
 } vt_state_t;
 
 static vt_state_t vt_state[NUM_TERMS];
@@ -82,6 +85,7 @@ void vt_init(void) {
         vt_state[i].kbd.alt = 0;
         vt_state[i].input_buf_ptr = 0;
         vt_state[i].enter_pressed = 0;
+        vt_state[i].active_pid = -1;
     }
     vt_state[0].video_mem = (char*)VIDEO;
 }
@@ -172,8 +176,8 @@ int32_t vt_write(int32_t fd, const void* buf, int32_t nbytes) {
  *   RETURN VALUE: none
  *   SIDE EFFECTS: video memory is modified
  */
-static void scroll_page(void) {
-    char * video_mem = vt_state[cur_vt].video_mem;
+static void scroll_page(int term_idx) {
+    char * video_mem = vt_state[term_idx].video_mem;
     int i;
     for (i = 0; i < NUM_ROWS - 1; i++) {
         memcpy(video_mem + ((NUM_COLS * i) * 2), video_mem + ((NUM_COLS * (i + 1)) * 2), NUM_COLS * 2 * sizeof(char));
@@ -195,7 +199,7 @@ static void print_newline(int term_idx) {
     vt_state[term_idx].screen_y++;
     vt_state[term_idx].screen_x = 0;
     if (vt_state[term_idx].screen_y >= NUM_ROWS) {
-        scroll_page();
+        scroll_page(term_idx);
         vt_state[term_idx].screen_y = NUM_ROWS - 1;
     }
 }
@@ -230,6 +234,9 @@ static void print_backspace(int term_idx) {
  *   SIDE EFFECTS: video memory is modified
  */
 static void redraw_cursor(int term_idx) {
+    if (term_idx != foreground_vt) {
+        return;
+    }
     uint16_t pos = vt_state[term_idx].screen_y * NUM_COLS + vt_state[term_idx].screen_x;
 
 	outb(0x0F, 0x3D4);
@@ -246,8 +253,11 @@ void vt_switch_term(int32_t term_idx)
     memcpy((char *)(VIDEO), (char *)(VIDEO + (term_idx + 1) * FOUR_KB), VID_BUF_SIZE);
     vt_state[foreground_vt].video_mem = (char *)(VIDEO + (foreground_vt + 1) * FOUR_KB);
     vt_state[term_idx].video_mem = (char *)(VIDEO);
-    redraw_cursor(term_idx);
     foreground_vt = term_idx;
+    redraw_cursor(term_idx);
+    if (cur_vt == term_idx || cur_vt == foreground_vt) {
+        vidmap_table[0].ADDR = (uint32_t)vt_state[cur_vt].video_mem >> 12; // Update the current vt vidmem 
+    }
 }
 
 /* process_default (PRIVATE)
@@ -384,9 +394,46 @@ void vt_putc(char c, int kbd) {
     restore_flags(flags);
 }
 
-void vt_set_active_term(int32_t term_idx)
+/* vt_set_active_term
+ *   DESCRIPTION:
+ *   INPUTS: the idx of the terminal to switch to
+ *   OUTPUTS: none
+ *   RETURN VALUE: the next pid
+ *   SIDE EFFECTS: switch to another virtual terminal 
+ */
+int32_t vt_set_active_term(uint32_t cur_esp, uint32_t cur_ebp)
 {
-    cur_vt = term_idx;
+    /* save esp and pid of current process on the current terminal */
+    vt_state[cur_vt].esp = cur_esp;
+    vt_state[cur_vt].ebp = cur_ebp;
+
+    cur_vt = (cur_vt +1) % NUM_TERMS; // get the idx of next terminal
+    uint32_t nxt_pid = vt_state[cur_vt].active_pid;
+
+    if(nxt_pid == -1) { // there's no process running on the nxt terminal
+        __syscall_execute("shell"); // execute a shell then
+    }
+
+    /* remap video memory */
+    vidmap_table[0].ADDR = (uint32_t)vt_state[cur_vt].video_mem >> 12;
+
+    // flushing TLB by reloading CR3 register
+    asm volatile (
+        "movl %%cr3, %%eax;"  // Move the value of CR3 into EBX
+        "movl %%eax, %%cr3;"  // Move the value from EBX back to CR3
+        : : : "eax", "memory"
+    );
+    return nxt_pid;
+}
+
+/* set the active_pid of a vt*/
+void vt_set_active_pid(int pid) {
+    vt_state[cur_vt].active_pid = pid; 
+}
+
+void vt_get_ebp_esp(uint32_t *esp, uint32_t *ebp) {
+    *esp = vt_state[cur_vt].esp;
+    *ebp = vt_state[cur_vt].ebp;
 }
 
 /* bad_read_call

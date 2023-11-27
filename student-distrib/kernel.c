@@ -13,6 +13,7 @@
 #include "tests.h"
 #include "devices/rtc.h"
 #include "devices/keyboard.h"
+#include "devices/pit.h"
 #include "devices/vt.h"
 #include "syscall_task.h"
 
@@ -156,6 +157,7 @@ void entry(unsigned long magic, unsigned long addr) {
      * PIC, any other initialization stuff... */
     idt_init();
     RTC_init();
+    pit_init();
     keyboard_init();
     filesys_init(in_memory_boot_block);
 
@@ -174,7 +176,7 @@ void entry(unsigned long magic, unsigned long addr) {
     launch_tests();
 #endif
     /* Execute the first program ("shell") ... */
-    __syscall_execute((uint8_t*)"shell");
+    // __syscall_execute((uint8_t*)"shell");
 
     /* Spin (nicely, so we don't chew up cycles) */
     asm volatile (".1: hlt; jmp .1;");

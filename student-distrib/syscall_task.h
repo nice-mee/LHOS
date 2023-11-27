@@ -4,6 +4,7 @@
 #include "filesys.h"
 #include "pcb.h"
 #include "devices/rtc.h"
+#include "devices/vt.h"
 
 #define FILE_NAME_LEN 32  // 32B to store file name in FS
 #define MAX_ARG_NUM 24

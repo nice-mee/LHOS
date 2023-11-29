@@ -2,6 +2,7 @@
 #define _PCB_H
 #include "types.h"
 #include "filesys.h"
+#include "signal.h"
 
 #define NUM_FILES 8
 #define MAX_PID_NUM 6
@@ -21,6 +22,7 @@ struct pcb_s {
     file_descriptor_t fd_array[NUM_FILES];
     uint8_t args[ARG_LEN + 1];
     pcb_t* parent_pcb;
+    signal_t signals[SIG_NUM];
     uint32_t esp;
     uint32_t ebp;
 };

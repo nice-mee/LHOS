@@ -400,10 +400,42 @@ int32_t __syscall_vidmap(uint8_t** screen_start){
     return 0;
 }
 
+/* __syscall_set_handler - changes the default action taken when the corresponding signal is reveived
+ * Inputs: signum - specifies which signal's handler to change
+ *         handler_address - points to a user-level function to be run when that signal is reveived
+ * Outputs: None
+ * Return:  0 if the handler is set successfully
+ *          -1 if handler setting fails
+ * Side Effects: This call may change the Signal_Actoin_Table
+ */
 int32_t __syscall_set_handler(int32_t signum, void* handler_address){
-    return -1;
+    pcb_t* cur_pcb = get_current_pcb();
+    /* if signum invalid or handler_address is NULL or get_current_pcb fails, set fails */
+    if(signum < 0 || signum > 4 || handler_address == NULL || cur_pcb == NULL) return -1;
+
+    /* changes the default action taken for the current pcb with input signum signal */
+    cur_pcb->signals[signum].sa_handler = handler_address;
+    return 0;
 }
 
+/* __syscall_sigreturn - copy the hardware context that was on the user-level stack back onto the processor
+ * Inputs: None
+ * Outputs: None
+ * Return:  0 as asume always successful
+ */
 int32_t __syscall_sigreturn(void){
-    return -1;
+    pcb_t* cur_pcb = get_current_pcb();
+    int32_t i;
+    uint32_t ebp0 asm("ebp");
+    
+    /* copy the handware context */
+    HW_Context_t* newcontext = (HW_Context_t*)(ebp0 + 20);                      // OFFSET extremely uncertain!!! Need Fixed
+    uint32_t user_esp = newcontext->esp;
+    HW_Context_t* oldcontext = (HW_Context_t*)(user_esp + 4);                   // OFFSET extremely uncertain!!! Need Fixed
+    memcpy(newcontext, oldcontext, sizeof(HW_Context_t));
+    /* unmask all signals */
+    for(i = 0; i < SIG_NUM; i++){
+        cur_pcb->signals[i].sa_masked = SIG_UNMASK;
+    }
+    return 0;
 }

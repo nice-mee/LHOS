@@ -4,6 +4,7 @@
 
 #include "syscall_task.h"
 #include "signal.h"
+#include "lib.h"
 
 /* __signal_ignore - do nothing, ignore the signal
  * Inputs: None
@@ -58,7 +59,7 @@ void handle_signal(void){
     uint32_t ebp0 asm("ebp");
     uint32_t user_esp;
     HW_Context_t* context;
-    uint32_t execute_sigreturn_size = execute_sigreturn - execute_sigreturn_end;
+    uint32_t execute_sigreturn_size = EXECUTE_SIGRETURN_END - EXECUTE_SIGRETURN;
     uint32_t ret_addr;
     /* checking pending signals */
     for(i = 0; i < SIG_NUM; i++){
@@ -81,7 +82,7 @@ void handle_signal(void){
     context = (HW_Context_t*)(ebp0 + 8);
     user_esp = context->esp;
     ret_addr = user_esp - execute_sigreturn_size;               // return to the execute sigreturn
-    memcpy((void*)(ret_addr), execute_sigreturn, execute_sigreturn_size);
+    memcpy((void*)(ret_addr), EXECUTE_SIGRETURN, execute_sigreturn_size);
     /* then push the hardware context */
     memcpy((void*)(ret_addr - sizeof(HW_Context_t)), context, sizeof(HW_Context_t));
     /* then push the signal number and return address */

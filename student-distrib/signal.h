@@ -73,8 +73,8 @@ typedef struct HW_Context{
 int32_t __signal_ignore(void);
 int32_t __signal_kill_task(void);
 int32_t send_signal(int32_t signum);
-int32_t handle_signal(void);
-void execute_sigreturn(void);
-void execute_sigreturn_end(void);
+void handle_signal(void);
+void EXECUTE_SIGRETURN(void);
+void EXECUTE_SIGRETURN_END(void);
 
 #endif /* _SIGNALS_H */

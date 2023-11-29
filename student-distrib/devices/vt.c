@@ -428,7 +428,14 @@ int32_t vt_set_active_term(uint32_t cur_esp, uint32_t cur_ebp)
 
 /* set the active_pid of a vt*/
 void vt_set_active_pid(int pid) {
-    vt_state[cur_vt].active_pid = pid; 
+    vt_state[cur_vt].active_pid = pid;
+    pcb_t* cur_pcb = get_pcb_by_pid(pid);
+    cur_pcb->vt = cur_vt; 
+}
+
+int32_t vt_check_active_pid(int vt_id) {
+    if(vt_id < 0 || vt_id > 2) return -1;
+    return vt_state[vt_id].active_pid;
 }
 
 void vt_get_ebp_esp(uint32_t *esp, uint32_t *ebp) {

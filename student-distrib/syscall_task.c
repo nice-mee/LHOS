@@ -407,3 +407,34 @@ int32_t __syscall_set_handler(int32_t signum, void* handler_address){
 int32_t __syscall_sigreturn(void){
     return -1;
 }
+
+int32_t __syscall_ps(void) {
+    uint32_t cur_pid;
+    for (cur_pid = 0; cur_pid < MAX_PID_NUM; ++cur_pid) {
+        pcb_t* cur_pcb = get_pcb_by_pid(cur_pid);
+        if(check_pid_occupied(cur_pid) == 0) { // pid not in used
+            continue;
+        } 
+        printf("PID: %d ", cur_pid);
+        printf("VT: %d" , cur_pcb->vt);
+        if(cur_pid == vt_check_active_pid(cur_pcb->vt)) {
+            printf(" STATUS: ACTIVE\n");
+        }
+        else {
+            printf(" STATUS: NOT ACTIVE\n");
+        }
+    }
+    int32_t vt_id;
+    int32_t active_pid;
+    for(vt_id = 0; vt_id < NUM_TERMS; ++vt_id) {
+        active_pid = vt_check_active_pid(vt_id);
+        if(active_pid == -1) {
+            printf("VT %d has no active process", vt_id);
+        }
+        else {
+            printf("VT %d's active process has pid %d", vt_id, active_pid);
+        }
+        printf("\n");
+    }
+    return 0;
+}

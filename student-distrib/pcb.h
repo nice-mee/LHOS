@@ -23,6 +23,7 @@ struct pcb_s {
     pcb_t* parent_pcb;
     uint32_t esp;
     uint32_t ebp;
+    uint32_t vt; // which terminal is executing this process
 };
 
 extern pcb_t* get_pcb_by_pid(uint32_t pid);
@@ -31,5 +32,6 @@ extern pcb_t* get_current_pcb();
 extern int32_t get_current_pid();
 extern int32_t get_available_pid();
 extern int32_t free_pid(int32_t pid);
+extern int32_t check_pid_occupied(int32_t pid);
 
 #endif /* _PCB_H */

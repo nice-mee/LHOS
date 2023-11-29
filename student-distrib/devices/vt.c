@@ -368,7 +368,7 @@ void vt_keyboard(keycode_t keycode, int release) {
             }
             break;
         case KEY_TAB:
-            process_default(KEY_SPACE, release); // Treat tab as space, easier to implement
+            command_completion();
             break;
         default:
             process_default(keycode, release);
@@ -476,4 +476,39 @@ int32_t bad_read_call(int32_t fd, void* buf, int32_t nbytes) {
  */
 int32_t bad_write_call(int32_t fd, const void* buf, int32_t nbytes) {
     return -1;
+}
+
+char all_cmds[NUM_CMDS][32] = {"cat","grep","hello","ls","pingpong","counter","shell","sigtest","testprint","syserr","fish"};
+
+void command_completion(){
+    if(vt_state[foreground_vt].input_buf_ptr == 0 || vt_state[foreground_vt].input_buf_ptr > 32){
+        return;
+    }
+    int i, have_space = 0;
+    for(i = 0; i < vt_state[foreground_vt].input_buf_ptr; i++){
+        if(vt_state[foreground_vt].input_buf[i] == ' '){
+            have_space = 1;
+            break;
+        }
+    }
+    if(have_space)
+        return;
+    for(i = 0; i < NUM_CMDS; i++){
+        if(vt_state[foreground_vt].input_buf_ptr >= strlen(all_cmds[i]))
+            continue;
+        if(strncmp(all_cmds[i], vt_state[foreground_vt].input_buf, vt_state[foreground_vt].input_buf_ptr) == 0){
+            while(vt_state[foreground_vt].input_buf_ptr > 0){
+                vt_state[foreground_vt].input_buf_ptr--;
+                vt_state[foreground_vt].input_buf[vt_state[foreground_vt].input_buf_ptr] = '\0';
+                vt_putc('\b', 1);
+            }
+            vt_state[foreground_vt].input_buf_ptr = strlen(all_cmds[i]);
+            strcpy(vt_state[foreground_vt].input_buf, all_cmds[i]);
+            int j;
+            for(j = 0; j < strlen(all_cmds[i]); j++)
+                vt_putc(all_cmds[i][j], 1);
+            break;
+        }
+    }
+    return;
 }

@@ -429,7 +429,7 @@ int32_t __syscall_ps(void) {
     for(vt_id = 0; vt_id < NUM_TERMS; ++vt_id) {
         active_pid = vt_check_active_pid(vt_id);
         if(active_pid == -1) {
-            printf("VT %d has no active process", vt_id);
+            printf("VT %d has no active process", vt_id); // actually never appears
         }
         else {
             printf("VT %d's active process has pid %d", vt_id, active_pid);
@@ -438,3 +438,38 @@ int32_t __syscall_ps(void) {
     }
     return 0;
 }
+
+int32_t __syscall_date(void) {
+    get_date();
+    printf("%d/%d/%d ", month, day, year);
+    if(hour == 0) {
+        printf("00:");
+    }
+    else {
+        if(hour < 10) {
+            printf("0");
+        }
+        printf("%d:", hour);
+    }
+    if(min == 0) {
+        printf("00:");
+    }
+    else {
+        if(min < 10) {
+            printf("0");
+        }
+        printf("%d:", min);
+    }
+    if(sec == 0) {
+        
+        printf("00\n");
+    }
+    else {
+        if(sec < 10) {
+            printf("0");
+        }
+        printf("%d\n", sec);
+    }
+    return 0;
+}
+

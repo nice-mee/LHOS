@@ -2,7 +2,7 @@ CFLAGS += -Wall -nostdlib -ffreestanding
 LDFLAGS += -nostdlib -ffreestanding
 CC = gcc
 
-ALL: cat grep hello ls pingpong counter shell sigtest testprint syserr
+ALL: cat grep hello ls pingpong counter shell sigtest testprint syserr ps date donut
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c -o $@ $<

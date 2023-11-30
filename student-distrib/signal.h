@@ -2,8 +2,8 @@
  * vim:ts=4 noexpandtab
  */
 
-#ifndef _SIGNALS_H
-#define _SIGNALS_H
+#ifndef _SIGNAL_H
+#define _SIGNAL_H
 
 #include "types.h"
 
@@ -70,9 +70,9 @@ typedef struct HW_Context{
 } HW_Context_t;
 
 /* functions used by signals system */
-int32_t __signal_ignore(void);
-int32_t __signal_kill_task(void);
-int32_t send_signal(int32_t signum);
+void __signal_ignore(void);
+void __signal_kill_task(void);
+void send_signal(int32_t signum);
 void handle_signal(void);
 void EXECUTE_SIGRETURN(void);
 void EXECUTE_SIGRETURN_END(void);

@@ -2,6 +2,7 @@
 #include "paging.h"
 #include "devices/vt.h"
 #include "x86_desc.h"
+#include "signal.h"
 
 static void set_user_PDE(uint32_t pid)
 {
@@ -170,6 +171,7 @@ static pcb_t* create_pcb(uint32_t pid, pcb_t *parent_pcb)
  * Side Effects: None
  */
 int32_t __syscall_execute(const uint8_t* command) {
+    int32_t i;
     // Parse args
     if (command == NULL) {
         return INVALID_CMD;
@@ -210,6 +212,13 @@ int32_t __syscall_execute(const uint8_t* command) {
     pcb_t* cur_pcb = create_pcb(pid, parent_pcb);
     /* Write arguments in pcb */
     memcpy(cur_pcb->args, args, ARG_LEN + 1);
+
+    // initialize pcb's signal structure
+    for(i = 0; i < SIG_NUM; i++){
+        if(i <= 2) cur_pcb->signals[i].sa_handler = __signal_kill_task;
+        else    cur_pcb->signals[i].sa_handler = __signal_ignore;
+        cur_pcb->signals[i].sa_masked = SIG_MASK;
+    }
 
     // set TSS
     tss.ss0 = KERNEL_DS;

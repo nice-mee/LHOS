@@ -3,17 +3,19 @@
  */
 
 #include "syscall_task.h"
+#include "scheduler.h"
+#include "devices/vt.h"
 #include "signal.h"
 #include "lib.h"
 
 /* __signal_ignore - do nothing, ignore the signal
  * Inputs: None
  * Outputs: None
- * Return: 0 as asume always success
+ * Return: None
  */
-int32_t __signal_ignore(void){
+void __signal_ignore(void){
     /* do nothing here */
-    return 0;
+    return;
 }
 
 /* __signal_kill_task - write the file
@@ -23,10 +25,10 @@ int32_t __signal_ignore(void){
  * Outputs: None
  * Return:  0 as asume always success
  */
-int32_t __signal_kill_task(void){
+void __signal_kill_task(void){
     clear();
     __syscall_halt(0);
-    return 0;
+    return;
 }
 
 /* send_signal - send the signal to the task when certain event occurs
@@ -35,7 +37,7 @@ int32_t __signal_kill_task(void){
  * Return:  0 if send successfully
  *          -1 if send fails
  */
-int32_t send_signal(int32_t signum){
+void send_signal(int32_t signum){
     pcb_t* cur_pcb = get_current_pcb();
     /* if signum is invalid or get_current_pcb fails, send fails */
     if(signum < 0 || signum > 4 || cur_pcb == NULL) return -1;
@@ -44,7 +46,7 @@ int32_t send_signal(int32_t signum){
     /* if the signal is INTERRUPT, do we need to change the cur_pcb ?????????????? I saw CZY does so */
     cur_pcb->signals[signum].sa_activate = SIG_ACTIVATED;
     sti();
-    return 0;
+    return;
 }
 
 /* handle_signal - handle the signal, called everytime when returning to user space, should be called in return-to-user space linkage

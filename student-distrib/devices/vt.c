@@ -430,7 +430,6 @@ int32_t vt_set_active_term(uint32_t cur_esp, uint32_t cur_ebp)
 void vt_set_active_pid(int pid) {
     vt_state[cur_vt].active_pid = pid;
     pcb_t* cur_pcb = get_pcb_by_pid(pid);
-    //printf("pid:%d vt:%d\n", pid, cur_vt);
     cur_pcb->vt = cur_vt; 
 }
 

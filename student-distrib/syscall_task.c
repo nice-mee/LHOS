@@ -195,7 +195,6 @@ int32_t __syscall_execute(const uint8_t* command) {
         return INVALID_CMD; // no available pid
     }
     set_user_PDE(pid);
-    vt_set_active_pid(pid); // cp5, record the active process of a vt
 
     // User-level Program Loader
     dentry_t cur_dentry;
@@ -210,6 +209,7 @@ int32_t __syscall_execute(const uint8_t* command) {
     pcb_t* cur_pcb = create_pcb(pid, parent_pcb);
     /* Write arguments in pcb */
     memcpy(cur_pcb->args, args, ARG_LEN + 1);
+    vt_set_active_pid(pid); // cp5, record the active process of a vt
 
     // set TSS
     tss.ss0 = KERNEL_DS;

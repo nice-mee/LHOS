@@ -28,7 +28,7 @@ syscall_handler:
 
     cmpl $0, %eax
     jle arg_error
-    cmpl $10, %eax
+    cmpl $12, %eax
     jg arg_error
     call *syscall_table(,%eax,4)
     jmp ret_from_syscall_handler
@@ -57,6 +57,8 @@ syscall_table:
     .long __syscall_vidmap
     .long __syscall_set_handler
     .long __syscall_sigreturn
+    .long 0x0
+    .long __syscall_ioctl
 
 
 /* Interrupt Handling. */

@@ -1,4 +1,5 @@
 #include "date.h"
+#include "GUI/gui.h"
 
 int32_t get_update_in_progress_flag() { // learnt from https://wiki.osdev.org/CMOS#Accessing_CMOS_Registers
       outb(0x0A, CMOS_SELE_PORT);
@@ -35,6 +36,7 @@ void get_date() {
         year = (year & 0x0F) + ((year >> 4) * 10);
     }
 
+    draw_time();
     // Convert 12 hour clock to 24 hour clock if necessary
     /*
     if (!(registerB & 0x02) && (hour & 0x80)) {

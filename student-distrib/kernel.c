@@ -16,6 +16,8 @@
 #include "devices/pit.h"
 #include "devices/vt.h"
 #include "syscall_task.h"
+#include "GUI/gui.h"
+#include "GUI/bga.h"
 
 #define RUN_TESTS
 
@@ -163,6 +165,9 @@ void entry(unsigned long magic, unsigned long addr) {
 
     /* Initialize paging */
     paging_init();
+
+    program_bga(X_RESOLUTION, Y_RESOLUTION, BITS_PER_PIXEL);
+    gui_set_up();
 
     /* Enable interrupts */
     /* Do not enable the following until after you have set up your

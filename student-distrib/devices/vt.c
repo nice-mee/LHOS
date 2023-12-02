@@ -52,7 +52,7 @@ typedef struct {
     char* video_mem;
     keyboard_state_t kbd;
     char input_buf[INPUT_BUF_SIZE]; // Temporary buffer for storing user input
-    int input_buf_ptr;
+    volatile int input_buf_ptr;
     volatile int enter_pressed;
     char user_buf[INPUT_BUF_SIZE]; // Buffer for storing user input after enter is pressed
     int nbytes_read;
@@ -60,11 +60,14 @@ typedef struct {
     uint32_t esp;
     uint32_t ebp;
     uint32_t halt_pending;
+    int32_t raw;
 } vt_state_t;
 
 static vt_state_t vt_state[NUM_TERMS];
 static int cur_vt = 0;
 static int foreground_vt = 0;
+
+static void redraw_cursor(int term_idx);
 
 /* vt_init
  *   DESCRIPTION: Initialize virtual terminal.
@@ -88,6 +91,7 @@ void vt_init(void) {
         vt_state[i].enter_pressed = 0;
         vt_state[i].active_pid = -1;
         vt_state[i].halt_pending = 0;
+        vt_state[i].raw = 0;
     }
     vt_state[0].video_mem = (char*)VIDEO;
 }
@@ -116,6 +120,19 @@ int32_t vt_close(int32_t id) {                              // return 0 as requi
     return 0;
 }
 
+static int32_t vt_read_raw(void* buf, int32_t nbytes) {
+    while (vt_state[cur_vt].input_buf_ptr == 0);
+    cli();
+    int i;
+    for (i = 0; i < nbytes && i < vt_state[cur_vt].input_buf_ptr; i++) {
+        ((char*)buf)[i] = vt_state[cur_vt].input_buf[i];
+    }
+    memcpy(vt_state[cur_vt].input_buf, &vt_state[cur_vt].input_buf[i], vt_state[cur_vt].input_buf_ptr - i);
+    vt_state[cur_vt].input_buf_ptr -= i;
+    sti();
+    return i;
+}
+
 /* vt_read
  *   DESCRIPTION: Read from virtual terminal.
  *   INPUTS: fd -- should be 0, which is stdin
@@ -129,6 +146,8 @@ int32_t vt_read(int32_t fd, void* buf, int32_t nbytes) {
     if (buf == NULL || nbytes < 0 || fd != 0)
         return -1;
 
+    if (vt_state[cur_vt].raw)
+        return vt_read_raw(buf, nbytes);
     cli();
     vt_state[cur_vt].input_buf_ptr = 0;
     sti();
@@ -166,6 +185,47 @@ int32_t vt_write(int32_t fd, const void* buf, int32_t nbytes) {
         return -1;
     int i;
     for (i = 0; i < nbytes; i++) {
+        if (vt_state[cur_vt].raw && ((char*)buf)[i] == '\x1b' && ((char*)buf)[i+1] == '[') {
+            char * video_mem = vt_state[cur_vt].video_mem;
+            if (strncmp(((char*)buf) + i, "\x1b[2J", 4) == 0) {
+                int x, y;
+                for (y = 0; y < NUM_ROWS; y++) {
+                    for (x = 0; x < NUM_COLS; x++) {
+                        *(uint8_t *)(video_mem + ((NUM_COLS * y + x) << 1)) = ' ';
+                        *(uint8_t *)(video_mem + ((NUM_COLS * y + x) << 1) + 1) = ATTRIB;
+                    }
+                }
+                i += 3;
+                continue;
+            }
+            if (strncmp(((char*)buf) + i, "\x1b[H", 3) == 0) {
+                vt_state[cur_vt].screen_x = 0;
+                vt_state[cur_vt].screen_y = 0;
+                redraw_cursor(cur_vt);
+                i += 2;
+                continue;
+            }
+            if (strncmp(((char*)buf) + i, "\x1b[K", 3) == 0) {
+                int x;
+                for (x = vt_state[cur_vt].screen_x; x < NUM_COLS; x++) {
+                    *(uint8_t *)(video_mem + ((NUM_COLS * vt_state[cur_vt].screen_y + x) << 1)) = ' ';
+                    *(uint8_t *)(video_mem + ((NUM_COLS * vt_state[cur_vt].screen_y + x) << 1) + 1) = ATTRIB;
+                }
+                i += 2;
+                continue;
+            }
+            if (((char*)buf)[i+7] == 'H' && ((char*)buf)[i+4] == ';') {
+                int screen_y = atoi(((char*)buf)[i+2]) * 10 + atoi(((char*)buf)[i+3]);
+                int screen_x = atoi(((char*)buf)[i+5]) * 10 + atoi(((char*)buf)[i+6]);
+                if (screen_y >= 0 && screen_y < NUM_ROWS && screen_x >= 0 && screen_x < NUM_COLS) {
+                    vt_state[cur_vt].screen_y = screen_y;
+                    vt_state[cur_vt].screen_x = screen_x;
+                }
+                redraw_cursor(cur_vt);
+                i += 7;
+                continue;
+            }
+        }
         vt_putc(((char*)buf)[i], 0);
     }
     return i;
@@ -319,6 +379,16 @@ static void process_default(keycode_t keycode, int release) {
     vt_state[foreground_vt].input_buf_ptr++;
 }
 
+static inline void vt_keyboard_raw(keycode_t keycode, int release) {
+    if (vt_state[foreground_vt].input_buf_ptr >= INPUT_BUF_SIZE)
+        return;
+    if (release) {
+        keycode |= 0x80;
+    }
+    vt_state[foreground_vt].input_buf[vt_state[foreground_vt].input_buf_ptr] = keycode;
+    vt_state[foreground_vt].input_buf_ptr++;
+}
+
 /* vt_keyboard
  *   DESCRIPTION: Keyboard input handler for virtual terminal. 
                   This function is inside interrupt context!!!
@@ -328,6 +398,8 @@ static void process_default(keycode_t keycode, int release) {
  *   SIDE EFFECTS: none
  */
 void vt_keyboard(keycode_t keycode, int release) {
+    if (vt_state[foreground_vt].raw)
+        return vt_keyboard_raw(keycode, release);
     switch (keycode) {
         case KEY_LEFTSHIFT:
         case KEY_RIGHTSHIFT:
@@ -476,4 +548,13 @@ int32_t bad_read_call(int32_t fd, void* buf, int32_t nbytes) {
  */
 int32_t bad_write_call(int32_t fd, const void* buf, int32_t nbytes) {
     return -1;
+}
+
+int32_t vt_ioctl(int32_t flag) {
+    if (flag == 1) {
+        vt_state[cur_vt].raw = 1;
+    } else {
+        vt_state[cur_vt].raw = 0;
+    }
+    return 0;
 }

@@ -407,3 +407,10 @@ int32_t __syscall_set_handler(int32_t signum, void* handler_address){
 int32_t __syscall_sigreturn(void){
     return -1;
 }
+
+int32_t __syscall_ioctl(int32_t fd, int32_t flag) {
+    if (fd == 1) {
+        return vt_ioctl(flag);
+    }
+    return 0;
+}

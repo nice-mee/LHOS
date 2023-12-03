@@ -359,6 +359,11 @@ static void process_default(keycode_t keycode, int release) {
         return;
     }
 
+    if (vt_state[foreground_vt].kbd.ctrl && keycode == KEY_M) { // Ctrl + M
+        show_memory_usage();        // show memory usage
+        return;
+    }
+
     /* Echo printable characters */
     if (keycode == KEY_RESERVED || keycode > KEY_SPACE) // KEY_SPACE is the last printable character in keycode table
         return;
@@ -556,5 +561,61 @@ int32_t vt_ioctl(int32_t flag) {
     } else {
         vt_state[cur_vt].raw = 0;
     }
+    return 0;
+}
+
+/* vt_write_foreground
+ *   DESCRIPTION: Write to virtual terminal for the foreground vt.
+ *                This syscall does not recognize '\0' as the end of string.
+ *                It will simply write nbytes bytes to the screen.
+ *   INPUTS: fd -- should be 1, which is stdout
+ *           buf -- buffer to write from
+ *           nbytes -- number of bytes to write
+ *   OUTPUTS: none
+ *   RETURN VALUE: number of bytes written
+ *   SIDE EFFECTS: none
+ */
+int32_t vt_write_foreground(int32_t fd, const void* buf, int32_t nbytes) {
+    if (buf == NULL || nbytes < 0 || fd != 1)
+        return -1;
+    int i;
+    for (i = 0; i < nbytes; i++) {
+        vt_putc(((char*)buf)[i], 1);
+    }
+    return i;
+}
+
+/* show_memory_usage - display the memory usage for all the pcb
+ * Inputs: None
+ * Outputs: the memory usage
+ * Return: 0 if show successfully, -1 otherwise
+ */
+int32_t show_memory_usage(void){
+    int32_t i, j, counter, usage;
+    uint8_t buf[4];
+    vt_write_foreground(1, "\n+--------------+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+", 81);
+    vt_write_foreground(1, "| Memory Usage |", 16);
+    for(i = 0; i < 16; i++){
+        counter = 0;
+        for(j = 0; j < 64; j++){
+            if(dynamic_tables[i * 64 + j].P == 1){
+                counter++;
+            }
+        }
+        usage = (int32_t)(((float) counter / 64) * 100);
+        if( usage < 100){
+            buf[0] = '0' + (usage / 10) % 10;
+            buf[1] = '0' + usage % 10;
+            buf[2] = '%';
+            buf[3] = '|';
+        } else {
+            buf[0] = '1';
+            buf[1] = '0';
+            buf[2] = '0';
+            buf[3] = '|';
+        }
+        vt_write_foreground(1, buf, 4);
+    }
+    vt_write_foreground(1, "+--------------+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+", 80);
     return 0;
 }

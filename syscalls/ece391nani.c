@@ -473,7 +473,7 @@ static void NANI_process_command_default(char c) {
 
 static void NANI_command_response() {
     char *command = NANI.command.command;
-    char *len = NANI.command.len;
+    char len = NANI.command.len;
     if (command[1] == 'q' && len == 2) {
         NANI_clear_screen();
         ece391_ioctl(1, 0); // Disable raw mode

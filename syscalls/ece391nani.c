@@ -44,6 +44,7 @@ enum NANI_mode {
     NANI_NORMAL,
     NANI_INSERT,
     NANI_COMMAND,
+    NANI_SEARCH,
 };
 
 typedef struct {
@@ -76,6 +77,8 @@ typedef struct nani_state {
     erow_t *row;
     command_t command;
     char statusmsg[50];
+    int search_direction;
+    // int search_last_match;
 } nani_state_t;
 
 struct append_buf {
@@ -93,7 +96,7 @@ nani_state_t NANI;
 struct append_buf abuf;
 
 void command_insert_char(char c) {
-    if (NANI.command.len >= 50) return;
+    if (NANI.command.len >= 49) return;
     NANI.command.command[NANI.command.len] = c;
     NANI.command.len++;
 }
@@ -128,6 +131,19 @@ int erow_sx2rx(erow_t *row, int sx) {
         rx++;
     }
     return rx;
+}
+
+int erow_rx2sx(erow_t *row, int rx) {
+    int cur_rx = 0;
+    int sx;
+    for (sx = 0; sx < row->size; sx++) {
+        if (row->chars[sx] == '\t') {
+            cur_rx += (NANI_TAB_SIZE - 1) - (cur_rx % NANI_TAB_SIZE);
+        }
+        cur_rx++;
+        if (cur_rx > rx) return sx;
+    }
+    return sx;
 }
 
 void erow_append_string(erow_t *row, char *s, int32_t len) {
@@ -254,6 +270,8 @@ static void NANI_draw_status_bar() {
         ece391_memcpy(status, "-- INSERT --", 12);
     } else if (NANI.mode == NANI_COMMAND) {
         ece391_memcpy(status, NANI.command.command, NANI.command.len);
+    } else if (NANI.mode == NANI_SEARCH) {
+        ece391_memcpy(status, NANI.command.command, NANI.command.len);
     }
     int i = NANI_STATUS_BAR_LINEINFO_START;
     status[i] = itoa((NANI.screen_y + 1) / 1000);
@@ -261,9 +279,10 @@ static void NANI_draw_status_bar() {
     status[i + 2] = itoa(((NANI.screen_y + 1) / 10) % 10);
     status[i + 3] = itoa((NANI.screen_y + 1) % 10);
     status[i + 4] = ',';
-    status[i + 5] = itoa((NANI.screen_x + 1) / 100);
-    status[i + 6] = itoa(((NANI.screen_x + 1) / 10) % 10);
-    status[i + 7] = itoa((NANI.screen_x + 1) % 10);
+    status[i + 5] = itoa((NANI.screen_x + 1) / 1000);
+    status[i + 6] = itoa(((NANI.screen_x + 1) / 100) % 10);
+    status[i + 7] = itoa(((NANI.screen_x + 1) / 10) % 10);
+    status[i + 8] = itoa((NANI.screen_x + 1) % 10);
     abuf_append(&abuf, status, 79);
 }
 
@@ -415,9 +434,11 @@ static void NANI_process_normal_key(char c) {
             NANI.statusmsg[0] = '\0'; // Clear status message
             break;
         case ':':
+        case '/':
+        case '?':
             NANI.mode = NANI_COMMAND;
             NANI.statusmsg[0] = '\0'; // Clear status message
-            command_insert_char(':');
+            command_insert_char(printable_char);
             break;
         default:
             break;
@@ -471,17 +492,98 @@ static void NANI_process_command_default(char c) {
     command_insert_char(printable_char);
 }
 
-static void NANI_command_response() {
-    char *command = NANI.command.command;
-    char len = NANI.command.len;
-    if (command[1] == 'q' && len == 2) {
+static void NANI_find(char *query) {
+    if (query == NULL) return;
+    if (NANI.numrows == 0) return;
+
+    int query_len = ece391_strlen((uint8_t *)query);
+
+    int i;
+    int current_y = NANI.screen_y;
+    int current_x = erow_sx2rx(&NANI.row[current_y], NANI.screen_x) + NANI.search_direction;
+    for (i = 0; i < NANI.numrows + 1; i++) {
+        erow_t *row = &NANI.row[current_y];
+        char *match = NULL;
+        if (NANI.search_direction == 1) {
+            for (;current_x < row->rsize - query_len + 1; current_x++) {
+                if (ece391_strncmp((uint8_t *)&row->render[current_x], (uint8_t *)query, query_len) == 0) {
+                    match = &row->render[current_x];
+                    break;
+                }
+            }
+        } else if (NANI.search_direction == -1) {
+            for (;current_x >= 0; current_x--) {
+                if (current_x + query_len > row->rsize) continue;
+                if (ece391_strncmp((uint8_t *)&row->render[current_x], (uint8_t *)query, query_len) == 0) {
+                    match = &row->render[current_x];
+                    break;
+                }
+            }
+        }
+        if (match) {
+            NANI.screen_y = current_y;
+            NANI.screen_x = erow_rx2sx(row, match - row->render);
+            // NANI.rowoff = NANI.numrows;
+            return;
+        } else {
+            if (NANI.search_direction == 1) {
+                current_y = (current_y + NANI.search_direction) % NANI.numrows;
+                current_x = 0;
+            } else if (NANI.search_direction == -1) {
+                current_y = (current_y + NANI.search_direction + NANI.numrows) % NANI.numrows;
+                current_x = NANI.row[current_y].rsize - query_len;
+            }
+        }
+    }
+}
+
+static void NANI_command_response_colon(char *command, int len) {
+    if (command[1] == 'w' && len == 2) {
+        ece391_memcpy(NANI.statusmsg, "E: Not implemented", 18);
+    } else if (command[1] == 'q' && len == 2) {
         NANI_clear_screen();
         ece391_ioctl(1, 0); // Disable raw mode
         ece391_halt(0);
     } else {
         ece391_memcpy(NANI.statusmsg, "E: Not a valid command", 23);
     }
-    NANI.mode = NANI_NORMAL;
+}
+
+static void NANI_command_response_slash(char *command, int len) {
+    if (len == 1) {
+        ece391_memcpy(NANI.statusmsg, "E: Not a valid command", 23);
+    } else {
+        command[len] = '\0';
+        NANI.search_direction = 1;
+        NANI_find(&command[1]);
+    }
+}
+
+static void NANI_command_response_question(char *command, int len) {
+    if (len == 1) {
+        ece391_memcpy(NANI.statusmsg, "E: Not a valid command", 23);
+    } else {
+        command[len] = '\0';
+        NANI.search_direction = -1;
+        NANI_find(&command[1]);
+    }
+}
+
+static void NANI_command_response() {
+    char *command = NANI.command.command;
+    int len = NANI.command.len;
+    if (command[0] == '/') {
+        NANI.mode = NANI_SEARCH;
+        NANI_command_response_slash(command, len);
+    } else if (command[0] == '?') {
+        NANI.mode = NANI_SEARCH;
+        NANI_command_response_question(command, len);
+    } else if (command[0] == ':') {
+        NANI_command_response_colon(command, len);
+        ece391_memset(NANI.command.command, 0, 50);
+        NANI.command.len = 0;
+        NANI.mode = NANI_NORMAL;
+    }
 }
 
 static void NANI_process_command_key(char c) {
@@ -497,11 +599,23 @@ static void NANI_process_command_key(char c) {
             break;
         case KEY_ENTER:
             NANI_command_response();
-            ece391_memset(NANI.command.command, 0, 50);
-            NANI.command.len = 0;
             break;
         default:
             NANI_process_command_default(c);
+    }
+}
+
+static void NANI_process_search_key(char c) {
+    switch (c) {
+        case KEY_ESC:
+            ece391_memset(NANI.command.command, 0, 50);
+            NANI.command.len = 0;
+            NANI.statusmsg[0] = '\0'; // Clear status message
+            NANI.mode = NANI_NORMAL;
+            break;
+        case KEY_N:
+            NANI_find(&NANI.command.command[1]);
+            break;
     }
 }
 
@@ -541,13 +655,16 @@ static void NANI_process_key() {
         default:
             switch (NANI.mode) {
                 case NANI_NORMAL:
-                        NANI_process_normal_key(c);
+                    NANI_process_normal_key(c);
                     break;
                 case NANI_INSERT:
-                        NANI_process_insert_key(c);
+                    NANI_process_insert_key(c);
                     break;
                 case NANI_COMMAND:
-                        NANI_process_command_key(c);
+                    NANI_process_command_key(c);
+                    break;
+                case NANI_SEARCH:
+                    NANI_process_search_key(c);
                     break;
             }
     }

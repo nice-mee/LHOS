@@ -12,11 +12,11 @@ int32_t ece391_getline(char* buf, int32_t fd, int32_t n);
 #define NULL 0
 #define NUM_TERM_COLS    (80 - 1)
 #define NUM_TERM_ROWS    (25 - 1)
-#define MAX_COLS         124
+#define MAX_COLS         1500
 #define MAX_ROWS         1000
-#define NANI_STATIC_BUF_ADDR 0x08000000
+#define NANI_STATIC_BUF_ADDR 0x07000000
 #define NANI_STATUS_BAR_LINEINFO_START 60
-#define NANI_TAB_SIZE 2
+#define NANI_TAB_SIZE 4
 #define COMMAND_BUF_SIZE 51
 
 static int8_t keycode_to_printable_char[2][128] =
@@ -67,6 +67,12 @@ typedef struct {
     int len;
 } command_t;
 
+struct append_buf {
+    int len;
+    int cap;
+    char buf[10240];
+};
+
 typedef struct nani_state {
     int screen_x, screen_y;
     int render_x;
@@ -80,13 +86,9 @@ typedef struct nani_state {
     char statusmsg[50];
     int search_direction;
     // int search_last_match;
+    struct append_buf abuf;
 } nani_state_t;
 
-struct append_buf {
-    char buf[2000];
-    int len;
-    int cap;
-};
 
 char itoa(int n) {
     if (n < 0 || n > 9) return '\0';
@@ -94,8 +96,6 @@ char itoa(int n) {
 }
 
 nani_state_t NANI;
-
-struct append_buf abuf;
 
 void command_insert_char(char c) {
     if (NANI.command.len >= COMMAND_BUF_SIZE - 1) return;
@@ -236,9 +236,28 @@ void NANI_insert_newline() {
     NANI.screen_x = 0;
 }
 
+void abuf_init(struct append_buf *ab) {
+    // ab->buf = ece391_malloc(32);
+    ab->len = 0;
+    ab->cap = 32;
+}
+
 void abuf_append(struct append_buf *ab, const char *s, int len) {
+    if (ab->len + len > ab->cap) {
+        while (ab->len + len > ab->cap) {
+            ab->cap *= 2;
+        }
+        // char *new_buf = ece391_malloc(ab->cap);
+        // ece391_memcpy(new_buf, ab->buf, ab->len);
+        // ece391_free(ab->buf);
+        // ab->buf = new_buf;
+    }
     ece391_memcpy(&ab->buf[ab->len], s, len);
     ab->len += len;
+}
+
+void abuf_clear(struct append_buf *ab) {
+    ab->len = 0;
 }
 
 static void NANI_clear_screen() {
@@ -266,7 +285,7 @@ static void NANI_scroll() {
 }
 
 static void NANI_draw_status_bar() {
-    // abuf_append(&abuf, "\x1b[7m", 4);
+    // abuf_append(&NANI.abuf, "\x1b[7m", 4);
     char status[79];
     ece391_memset(status, ' ', 79);
     if (NANI.statusmsg[0] != '\0') {
@@ -290,14 +309,14 @@ static void NANI_draw_status_bar() {
     status[i + 6] = itoa(((NANI.screen_x + 1) / 100) % 10);
     status[i + 7] = itoa(((NANI.screen_x + 1) / 10) % 10);
     status[i + 8] = itoa((NANI.screen_x + 1) % 10);
-    abuf_append(&abuf, status, 79);
+    abuf_append(&NANI.abuf, status, 79);
 }
 
 static void NANI_update_screen() {
     NANI_scroll();
     
     // Reset cursor to topleft
-    abuf_append(&abuf, "\x1b[H", 3);
+    abuf_append(&NANI.abuf, "\x1b[H", 3);
 
     // Draw lines
     int scr_y;
@@ -308,10 +327,10 @@ static void NANI_update_screen() {
                 char welcome[NUM_TERM_COLS] = "NANI -- a simple editor";
                 int left_padding = (NUM_TERM_COLS - ece391_strlen((uint8_t *)welcome)) / 2; 
                 while (left_padding--)
-                    abuf_append(&abuf, "~", 1);
-                abuf_append(&abuf, welcome, ece391_strlen((uint8_t *)welcome));
+                    abuf_append(&NANI.abuf, "~", 1);
+                abuf_append(&NANI.abuf, welcome, ece391_strlen((uint8_t *)welcome));
             } else {
-                abuf_append(&abuf, "~", 1);
+                abuf_append(&NANI.abuf, "~", 1);
             }
         } else {
             int len = NANI.row[filerow].rsize - NANI.coloff;
@@ -319,11 +338,11 @@ static void NANI_update_screen() {
                 len = 0;
             if (len > NUM_TERM_COLS)
                 len = NUM_TERM_COLS;
-            abuf_append(&abuf, &NANI.row[filerow].render[NANI.coloff], len);
+            abuf_append(&NANI.abuf, &NANI.row[filerow].render[NANI.coloff], len);
         }
         
-        abuf_append(&abuf, "\x1b[K", 3);
-        abuf_append(&abuf, "\n", 1);
+        abuf_append(&NANI.abuf, "\x1b[K", 3);
+        abuf_append(&NANI.abuf, "\n", 1);
     }
 
     NANI_draw_status_bar();
@@ -334,12 +353,11 @@ static void NANI_update_screen() {
     cursor_cmd[3] = itoa((NANI.screen_y - NANI.rowoff) % 10);
     cursor_cmd[5] = itoa((NANI.render_x - NANI.coloff) / 10);
     cursor_cmd[6] = itoa((NANI.render_x - NANI.coloff) % 10);
-    abuf_append(&abuf, cursor_cmd, 8);
+    abuf_append(&NANI.abuf, cursor_cmd, 8);
 
-    ece391_write(1, abuf.buf, abuf.len);
+    ece391_write(1, NANI.abuf.buf, NANI.abuf.len);
 
-    ece391_memset(abuf.buf, 0, abuf.len);
-    abuf.len = 0;
+    abuf_clear(&NANI.abuf);
 }
 
 static void NANI_move_cursor(char c) {
@@ -691,6 +709,7 @@ static void NANI_init() {
     NANI.search_direction = 1;
     NANI.command.len = 0;
     NANI.command.command[0] = '\0';
+    abuf_init(&NANI.abuf);
 }
 
 static char line_buf[MAX_COLS + 1];
@@ -698,6 +717,10 @@ static char line_buf[MAX_COLS + 1];
 static int32_t NANI_open(int32_t fd) {
     int linelen;
     while (-1 != (linelen = ece391_getline(line_buf, fd, MAX_COLS + 1))) {
+        if (NANI.numrows == MAX_ROWS) {
+            ece391_fdputs(1, (uint8_t*)"file too long\n");
+            return -1;
+        }
         if (linelen == -2) {
             ece391_fdputs(1, (uint8_t*)"file too long\n");
             return -1;

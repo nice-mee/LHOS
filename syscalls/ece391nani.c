@@ -17,6 +17,7 @@ int32_t ece391_getline(char* buf, int32_t fd, int32_t n);
 #define NANI_STATIC_BUF_ADDR 0x08000000
 #define NANI_STATUS_BAR_LINEINFO_START 60
 #define NANI_TAB_SIZE 2
+#define COMMAND_BUF_SIZE 51
 
 static int8_t keycode_to_printable_char[2][128] =
 {
@@ -62,7 +63,7 @@ typedef struct erow {
 } erow_t;
 
 typedef struct {
-    char command[50];
+    char command[COMMAND_BUF_SIZE];
     int len;
 } command_t;
 
@@ -84,6 +85,7 @@ typedef struct nani_state {
 struct append_buf {
     char buf[2000];
     int len;
+    int cap;
 };
 
 char itoa(int n) {
@@ -96,7 +98,7 @@ nani_state_t NANI;
 struct append_buf abuf;
 
 void command_insert_char(char c) {
-    if (NANI.command.len >= 49) return;
+    if (NANI.command.len >= COMMAND_BUF_SIZE - 1) return;
     NANI.command.command[NANI.command.len] = c;
     NANI.command.len++;
 }
@@ -104,6 +106,11 @@ void command_insert_char(char c) {
 void command_backspace() {
     if (NANI.command.len == 0) return;
     NANI.command.len--;
+}
+
+void command_clear() {
+    ece391_memset(NANI.command.command, 0, COMMAND_BUF_SIZE);
+    NANI.command.len = 0;
 }
 
 void erow_update_render(erow_t *row) {
@@ -580,8 +587,7 @@ static void NANI_command_response() {
         NANI_command_response_question(command, len);
     } else if (command[0] == ':') {
         NANI_command_response_colon(command, len);
-        ece391_memset(NANI.command.command, 0, 50);
-        NANI.command.len = 0;
+        command_clear();
         NANI.mode = NANI_NORMAL;
     }
 }
@@ -589,8 +595,7 @@ static void NANI_command_response() {
 static void NANI_process_command_key(char c) {
     switch (c) {
         case KEY_ESC:
-            ece391_memset(NANI.command.command, 0, 50);
-            NANI.command.len = 0;
+            command_clear();
             NANI.statusmsg[0] = '\0'; // Clear status message
             NANI.mode = NANI_NORMAL;
             break;
@@ -608,8 +613,7 @@ static void NANI_process_command_key(char c) {
 static void NANI_process_search_key(char c) {
     switch (c) {
         case KEY_ESC:
-            ece391_memset(NANI.command.command, 0, 50);
-            NANI.command.len = 0;
+            command_clear();
             NANI.statusmsg[0] = '\0'; // Clear status message
             NANI.mode = NANI_NORMAL;
             break;
@@ -684,6 +688,9 @@ static void NANI_init() {
     NANI.numrows = 0;
     NANI.row = (erow_t *)NANI_STATIC_BUF_ADDR;
     NANI.statusmsg[0] = '\0';
+    NANI.search_direction = 1;
+    NANI.command.len = 0;
+    NANI.command.command[0] = '\0';
 }
 
 static char line_buf[MAX_COLS + 1];

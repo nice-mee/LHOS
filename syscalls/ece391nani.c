@@ -10,7 +10,7 @@ void ece391_memset(void* memory, char c, int n);
 int32_t ece391_getline(char* buf, int32_t fd, int32_t n);
 
 #define NULL 0
-#define NUM_TERM_COLS    80
+#define NUM_TERM_COLS    (80 - 1)
 #define NUM_TERM_ROWS    (25 - 1)
 #define MAX_COLS         124
 #define MAX_ROWS         1000
@@ -56,7 +56,7 @@ typedef struct erow {
     int size;
     int rsize;
     char chars[MAX_COLS];
-    char render[MAX_COLS];
+    char render[2 * MAX_COLS];
 } erow_t;
 
 typedef struct nani_state {
@@ -91,14 +91,87 @@ void erow_update_render(erow_t *row) {
     row->rsize = j;
 }
 
-void erow_append(char *s, int32_t len) {
-    int at = NANI.numrows;
-    if (at >= MAX_ROWS) return;
+void erow_append_string(erow_t *row, char *s, int32_t len) {
+    int at = row->size;
+    row->size += len;
+    ece391_memcpy(&row->chars[at], s, len);
+    erow_update_render(row);
+}
+
+void erow_insert_char(erow_t *row, int at, char c) {
+    if (at >= MAX_COLS) return;
+    if (at < 0 || at > row->size) at = row->size;
+    int i;
+    for (i = row->size; i > at; i--) {
+        row->chars[i] = row->chars[i - 1];
+    }
+    row->chars[at] = c;
+    row->size++;
+    erow_update_render(row);
+}
+
+
+void erow_delete_char(erow_t *row, int at) {
+    if (at < 0 || at >= row->size) return;
+    int i;
+    for (i = at; i < row->size - 1; i++) {
+        row->chars[i] = row->chars[i + 1];
+    }
+    row->size--;
+    erow_update_render(row);
+}
+
+void NANI_delete_row(int at) {
+    if (at < 0 || at >= NANI.numrows) return;
+    int i;
+    for (i = at; i < NANI.numrows - 1; i++) {
+        ece391_memcpy(&NANI.row[i], &NANI.row[i + 1], sizeof(erow_t));
+    }
+    NANI.numrows--;
+}
+
+
+void NANI_insert_row(int at, char *s, int32_t len) {
+    if (at < 0 || at > NANI.numrows || at >= MAX_ROWS) return;
+    int i;
+    for (i = NANI.numrows; i > at; i--) {
+        ece391_memcpy(&NANI.row[i], &NANI.row[i - 1], sizeof(erow_t));
+    }
     NANI.row[at].size = len;
     ece391_memcpy(NANI.row[at].chars, s, len);
     NANI.row[at].rsize = 0;
     erow_update_render(&NANI.row[at]);
+
     NANI.numrows++;
+}
+
+void NANI_delete_char() {
+    if (NANI.screen_y == NANI.numrows) return;
+    if (NANI.screen_x == 0 && NANI.screen_y == 0) return;
+    erow_t *row = &NANI.row[NANI.screen_y];
+    if (NANI.screen_x > 0) {
+        erow_delete_char(row, NANI.screen_x - 1);
+        NANI.screen_x--;
+    } else {
+        if (NANI.row[NANI.screen_y - 1].size + NANI.row[NANI.screen_y].size > MAX_COLS) return;
+        NANI.screen_x = NANI.row[NANI.screen_y - 1].size;
+        erow_append_string(&NANI.row[NANI.screen_y - 1], row->chars, row->size);
+        NANI_delete_row(NANI.screen_y);
+        NANI.screen_y--;
+    }
+}
+
+void NANI_insert_newline() {
+    if (NANI.screen_x == 0) {
+        NANI_insert_row(NANI.screen_y, "", 0);
+    } else {
+        erow_t *row = &NANI.row[NANI.screen_y];
+        NANI_insert_row(NANI.screen_y + 1, &row->chars[NANI.screen_x], row->size - NANI.screen_x);
+        row->size = NANI.screen_x;
+        erow_update_render(row);
+    }
+    NANI.screen_y++;
+    NANI.screen_x = 0;
 }
 
 void abuf_append(struct append_buf *ab, const char *s, int len) {
@@ -130,6 +203,11 @@ static void NANI_draw_status_bar() {
     // abuf_append(&abuf, "\x1b[7m", 4);
     char status[79];
     ece391_memset(status, ' ', 79);
+    if (NANI.mode == NANI_NORMAL) {
+        ece391_memcpy(status, "-- NORMAL --", 12);
+    } else if (NANI.mode == NANI_INSERT) {
+        ece391_memcpy(status, "-- INSERT --", 12);
+    }
     int i = NANI_STATUS_BAR_LINEINFO_START;
     status[i] = itoa((NANI.screen_y + 1) / 1000);
     status[i + 1] = itoa(((NANI.screen_y + 1) / 100) % 10);
@@ -187,6 +265,7 @@ static void NANI_update_screen() {
 
     ece391_write(1, abuf.buf, abuf.len);
 
+    ece391_memset(abuf.buf, 0, abuf.len);
     abuf.len = 0;
 }
 
@@ -239,20 +318,24 @@ static void NANI_process_normal_key(char c) {
             break;
         case 'b':
         case 'B':
-            NANI.screen_y = NANI.rowoff;
-            int i = NUM_TERM_ROWS;
-            while (i--) {
-                NANI_move_cursor('k');
+            if (NANI.kbd.ctrl) {
+                NANI.screen_y = NANI.rowoff;
+                int i = NUM_TERM_ROWS;
+                while (i--) {
+                    NANI_move_cursor('k');
+                }
             }
             break;
         case 'f':
         case 'F':
-            NANI.screen_y = NANI.rowoff + NUM_TERM_COLS - 1;
-            if (NANI.screen_y >= NANI.numrows)
-                NANI.screen_y = NANI.numrows;
-            int j = NUM_TERM_ROWS;
-            while (j--) {
-                NANI_move_cursor('j');
+            if (NANI.kbd.ctrl) {
+                NANI.screen_y = NANI.rowoff + NUM_TERM_COLS - 1;
+                if (NANI.screen_y >= NANI.numrows)
+                    NANI.screen_y = NANI.numrows;
+                int i = NUM_TERM_ROWS;
+                while (i--) {
+                    NANI_move_cursor('j');
+                }
             }
             break;
         case '$':
@@ -272,7 +355,25 @@ static void NANI_process_normal_key(char c) {
         case ':':
             NANI.mode = NANI_COMMAND;
             break;
+        default:
+            break;
     }
+}
+
+static void NANI_process_insert_default(char c) {
+    if (c & 0x80) return; // ignore releases
+    char printable_char;
+    if (c >= KEY_A && c <= KEY_Z) {
+        printable_char = keycode_to_printable_char[NANI.kbd.shift ^ NANI.kbd.caps][(int)c];
+    } else {
+        printable_char = keycode_to_printable_char[NANI.kbd.shift][(int)c];
+    }
+    if (c == '\0') return;
+    if (NANI.screen_y == NANI.numrows) {
+        NANI_insert_row(NANI.numrows, "", 0);
+    }
+    erow_insert_char(&NANI.row[NANI.screen_y], NANI.screen_x, printable_char);
+    NANI.screen_x++;
 }
 
 static void NANI_process_insert_key(char c) {
@@ -280,6 +381,14 @@ static void NANI_process_insert_key(char c) {
         case KEY_ESC:
             NANI.mode = NANI_NORMAL;
             break;
+        case KEY_BACKSPACE:
+            NANI_delete_char();
+            break;
+        case KEY_ENTER:
+            NANI_insert_newline();
+            break;
+        default:
+            NANI_process_insert_default(c);
     }
 }
 
@@ -364,7 +473,7 @@ static int32_t NANI_open(int32_t fd) {
         }
         while (linelen > 0 && line_buf[linelen - 1] == '\n')
         linelen--;
-        erow_append(line_buf, linelen);
+        NANI_insert_row(NANI.numrows, line_buf, linelen);
     }
     return 0;
 }

@@ -16,6 +16,7 @@ int32_t ece391_getline(char* buf, int32_t fd, int32_t n);
 #define MAX_ROWS         1000
 #define NANI_STATIC_BUF_ADDR 0x08000000
 #define NANI_STATUS_BAR_LINEINFO_START 60
+#define NANI_TAB_SIZE 2
 
 static int8_t keycode_to_printable_char[2][128] =
 {
@@ -56,17 +57,25 @@ typedef struct erow {
     int size;
     int rsize;
     char chars[MAX_COLS];
-    char render[2 * MAX_COLS];
+    char render[NANI_TAB_SIZE * MAX_COLS];
 } erow_t;
+
+typedef struct {
+    char command[50];
+    int len;
+} command_t;
 
 typedef struct nani_state {
     int screen_x, screen_y;
+    int render_x;
     int rowoff;
     int coloff;
     enum NANI_mode mode;
     keyboard_state_t kbd;
     int numrows;
     erow_t *row;
+    command_t command;
+    char statusmsg[50];
 } nani_state_t;
 
 struct append_buf {
@@ -75,6 +84,7 @@ struct append_buf {
 };
 
 char itoa(int n) {
+    if (n < 0 || n > 9) return '\0';
     return n + '0';
 }
 
@@ -82,13 +92,42 @@ nani_state_t NANI;
 
 struct append_buf abuf;
 
+void command_insert_char(char c) {
+    if (NANI.command.len >= 50) return;
+    NANI.command.command[NANI.command.len] = c;
+    NANI.command.len++;
+}
+
+void command_backspace() {
+    if (NANI.command.len == 0) return;
+    NANI.command.len--;
+}
+
 void erow_update_render(erow_t *row) {
     int i, j=0;
     for (i = 0; i < row->size; i++) {
-        row->render[j] = row->chars[i];
-        j++;
+        if (row->chars[i] == '\t') {
+            row->render[j++] = ' ';
+            while (j % NANI_TAB_SIZE != 0) {
+                row->render[j++] = ' ';
+            }
+        } else {
+            row->render[j++] = row->chars[i];
+        }
     }
     row->rsize = j;
+}
+
+int erow_sx2rx(erow_t *row, int sx) {
+    int rx = 0;
+    int j;
+    for (j = 0; j < sx; j++) {
+        if (row->chars[j] == '\t') {
+            rx += (NANI_TAB_SIZE - 1) - (rx % NANI_TAB_SIZE);
+        }
+        rx++;
+    }
+    return rx;
 }
 
 void erow_append_string(erow_t *row, char *s, int32_t len) {
@@ -185,17 +224,21 @@ static void NANI_clear_screen() {
 }
 
 static void NANI_scroll() {
+    NANI.render_x = 0;
+    if (NANI.screen_y < NANI.numrows) {
+        NANI.render_x = erow_sx2rx(&NANI.row[NANI.screen_y], NANI.screen_x);
+    }
     if (NANI.screen_y < NANI.rowoff) {
         NANI.rowoff = NANI.screen_y;
     }
     if (NANI.screen_y >= NANI.rowoff + NUM_TERM_ROWS) {
         NANI.rowoff = NANI.screen_y - NUM_TERM_ROWS + 1;
     }
-    if (NANI.screen_x < NANI.coloff) {
-        NANI.coloff = NANI.screen_x;
+    if (NANI.render_x < NANI.coloff) {
+        NANI.coloff = NANI.render_x;
     }
-    if (NANI.screen_x >= NANI.coloff + NUM_TERM_COLS) {
-        NANI.coloff = NANI.screen_x - NUM_TERM_COLS + 1;
+    if (NANI.render_x >= NANI.coloff + NUM_TERM_COLS) {
+        NANI.coloff = NANI.render_x - NUM_TERM_COLS + 1;
     }
 }
 
@@ -203,10 +246,14 @@ static void NANI_draw_status_bar() {
     // abuf_append(&abuf, "\x1b[7m", 4);
     char status[79];
     ece391_memset(status, ' ', 79);
-    if (NANI.mode == NANI_NORMAL) {
+    if (NANI.statusmsg[0] != '\0') {
+        ece391_memcpy(status, NANI.statusmsg, ece391_strlen((uint8_t *)NANI.statusmsg));
+    } else if (NANI.mode == NANI_NORMAL) {
         ece391_memcpy(status, "-- NORMAL --", 12);
     } else if (NANI.mode == NANI_INSERT) {
         ece391_memcpy(status, "-- INSERT --", 12);
+    } else if (NANI.mode == NANI_COMMAND) {
+        ece391_memcpy(status, NANI.command.command, NANI.command.len);
     }
     int i = NANI_STATUS_BAR_LINEINFO_START;
     status[i] = itoa((NANI.screen_y + 1) / 1000);
@@ -259,8 +306,8 @@ static void NANI_update_screen() {
     char cursor_cmd[8] = "\x1b[00;00H";
     cursor_cmd[2] = itoa((NANI.screen_y - NANI.rowoff) / 10);
     cursor_cmd[3] = itoa((NANI.screen_y - NANI.rowoff) % 10);
-    cursor_cmd[5] = itoa((NANI.screen_x - NANI.coloff) / 10);
-    cursor_cmd[6] = itoa((NANI.screen_x - NANI.coloff) % 10);
+    cursor_cmd[5] = itoa((NANI.render_x - NANI.coloff) / 10);
+    cursor_cmd[6] = itoa((NANI.render_x - NANI.coloff) % 10);
     abuf_append(&abuf, cursor_cmd, 8);
 
     ece391_write(1, abuf.buf, abuf.len);
@@ -308,14 +355,6 @@ static void NANI_process_normal_key(char c) {
         printable_char = keycode_to_printable_char[NANI.kbd.shift][(int)c];
     }
     switch (printable_char) {
-        case 'x':
-        case 'X':
-            if (NANI.kbd.ctrl) {
-                NANI_clear_screen();
-                ece391_ioctl(1, 0); // Disable raw mode
-                ece391_halt(0);
-            }
-            break;
         case 'b':
         case 'B':
             if (NANI.kbd.ctrl) {
@@ -351,9 +390,12 @@ static void NANI_process_normal_key(char c) {
             break;
         case 'i':
             NANI.mode = NANI_INSERT;
+            NANI.statusmsg[0] = '\0'; // Clear status message
             break;
         case ':':
             NANI.mode = NANI_COMMAND;
+            NANI.statusmsg[0] = '\0'; // Clear status message
+            command_insert_char(':');
             break;
         default:
             break;
@@ -362,9 +404,12 @@ static void NANI_process_normal_key(char c) {
 
 static void NANI_process_insert_default(char c) {
     if (c & 0x80) return; // ignore releases
+    if ((c == KEY_RESERVED || c > KEY_SPACE) && c != KEY_TAB) return; // ignore non-printable characters
     char printable_char;
     if (c >= KEY_A && c <= KEY_Z) {
         printable_char = keycode_to_printable_char[NANI.kbd.shift ^ NANI.kbd.caps][(int)c];
+    } else if (c == KEY_TAB) {
+        printable_char = '\t';
     } else {
         printable_char = keycode_to_printable_char[NANI.kbd.shift][(int)c];
     }
@@ -392,11 +437,49 @@ static void NANI_process_insert_key(char c) {
     }
 }
 
+static void NANI_process_command_default(char c) {
+    if (c & 0x80) return; // ignore releases
+    if (c == KEY_RESERVED || c > KEY_SPACE) return; // ignore non-printable characters
+    char printable_char;
+    if (c >= KEY_A && c <= KEY_Z) {
+        printable_char = keycode_to_printable_char[NANI.kbd.shift ^ NANI.kbd.caps][(int)c];
+    } else {
+        printable_char = keycode_to_printable_char[NANI.kbd.shift][(int)c];
+    }
+    command_insert_char(printable_char);
+}
+
+static void NANI_command_response() {
+    char *command = NANI.command.command;
+    char *len = NANI.command.len;
+    if (command[1] == 'q' && len == 2) {
+        NANI_clear_screen();
+        ece391_ioctl(1, 0); // Disable raw mode
+        ece391_halt(0);
+    } else {
+        ece391_memcpy(NANI.statusmsg, "E: Not a valid command", 23);
+    }
+    NANI.mode = NANI_NORMAL;
+}
+
 static void NANI_process_command_key(char c) {
     switch (c) {
         case KEY_ESC:
+            ece391_memset(NANI.command.command, 0, 50);
+            NANI.command.len = 0;
+            NANI.statusmsg[0] = '\0'; // Clear status message
             NANI.mode = NANI_NORMAL;
             break;
+        case KEY_BACKSPACE:
+            command_backspace();
+            break;
+        case KEY_ENTER:
+            NANI_command_response();
+            ece391_memset(NANI.command.command, 0, 50);
+            NANI.command.len = 0;
+            break;
+        default:
+            NANI_process_command_default(c);
     }
 }
 
@@ -451,6 +534,7 @@ static void NANI_process_key() {
 static void NANI_init() {
     NANI.screen_x = 0;
     NANI.screen_y = 0;
+    NANI.render_x = 0;
     NANI.rowoff = 0;
     NANI.coloff = 0;
     NANI.mode = NANI_NORMAL;
@@ -460,6 +544,7 @@ static void NANI_init() {
     NANI.kbd.alt = 0;
     NANI.numrows = 0;
     NANI.row = (erow_t *)NANI_STATIC_BUF_ADDR;
+    NANI.statusmsg[0] = '\0';
 }
 
 static char line_buf[MAX_COLS + 1];

@@ -53,6 +53,7 @@ typedef struct page_table_entry {
 PDE_t page_directory[DIR_TBL_SIZE] __attribute__((aligned(PAGE_SIZE)));
 PTE_t page_table[PAGE_TBL_SIZE] __attribute__((aligned(PAGE_SIZE)));
 PTE_t vidmap_table[PAGE_TBL_SIZE] __attribute__((aligned(PAGE_SIZE)));
+PTE_t dynamic_tables[PAGE_TBL_SIZE] __attribute__((aligned(PAGE_SIZE)));
 
 void paging_init();
 

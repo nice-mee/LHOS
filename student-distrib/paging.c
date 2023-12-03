@@ -94,10 +94,21 @@ void paging_init(){
     page_directory[0].P    = 1;
     page_directory[0].ADDR = (uint32_t)page_table >> 12;
 
+    // NANI buffer for erow_t
     page_directory[NANI_STATIC_BUF_ADDR >> 22].P = 1;
     page_directory[NANI_STATIC_BUF_ADDR >> 22].US = 1;
     page_directory[NANI_STATIC_BUF_ADDR >> 22].PS = 1;
     page_directory[NANI_STATIC_BUF_ADDR >> 22].ADDR = NANI_STATIC_BUF_ADDR >> 12;
+    page_directory[(NANI_STATIC_BUF_ADDR + FOUR_MB) >> 22].P = 1;
+    page_directory[(NANI_STATIC_BUF_ADDR + FOUR_MB) >> 22].US = 1;
+    page_directory[(NANI_STATIC_BUF_ADDR + FOUR_MB) >> 22].PS = 1;
+    page_directory[(NANI_STATIC_BUF_ADDR + FOUR_MB) >> 22].ADDR = (NANI_STATIC_BUF_ADDR + FOUR_MB) >> 12;
+    // NANI buffer for writing file
+    page_directory[(NANI_STATIC_BUF_ADDR + 2 * FOUR_MB) >> 22].P = 1;
+    page_directory[(NANI_STATIC_BUF_ADDR + 2 * FOUR_MB) >> 22].US = 1;
+    page_directory[(NANI_STATIC_BUF_ADDR + 2 * FOUR_MB) >> 22].PS = 1;
+    page_directory[(NANI_STATIC_BUF_ADDR + 2 * FOUR_MB) >> 22].ADDR = (NANI_STATIC_BUF_ADDR + 2 * FOUR_MB) >> 12;
+
 
     // Code for manipulating control registers to enable paging.
     asm volatile(

@@ -392,6 +392,28 @@ static void NANI_process_normal_key(char c) {
             NANI.mode = NANI_INSERT;
             NANI.statusmsg[0] = '\0'; // Clear status message
             break;
+        case 'a':
+            {
+                erow_t *row = (NANI.screen_y >= NANI.numrows) ? NULL : &NANI.row[NANI.screen_y];
+                if (row && NANI.screen_x < row->size) {
+                    NANI.screen_x++;
+                }
+            }
+            NANI.mode = NANI_INSERT;
+            NANI.statusmsg[0] = '\0'; // Clear status message
+            break;
+        case 'A':
+            {
+                erow_t *row = (NANI.screen_y >= NANI.numrows) ? NULL : &NANI.row[NANI.screen_y];
+                if (row) {
+                    NANI.screen_x = row->size;
+                } else {
+                    NANI.screen_x = 0;
+                }
+            }
+            NANI.mode = NANI_INSERT;
+            NANI.statusmsg[0] = '\0'; // Clear status message
+            break;
         case ':':
             NANI.mode = NANI_COMMAND;
             NANI.statusmsg[0] = '\0'; // Clear status message

@@ -61,6 +61,7 @@ typedef struct {
     uint32_t ebp;
     uint32_t halt_pending;
     int32_t raw;
+    int8_t attrib;
 } vt_state_t;
 
 static vt_state_t vt_state[NUM_TERMS];
@@ -92,6 +93,7 @@ void vt_init(void) {
         vt_state[i].active_pid = -1;
         vt_state[i].halt_pending = 0;
         vt_state[i].raw = 0;
+        vt_state[i].attrib = ATTRIB;
     }
     vt_state[0].video_mem = (char*)VIDEO;
 }
@@ -187,12 +189,13 @@ int32_t vt_write(int32_t fd, const void* buf, int32_t nbytes) {
     for (i = 0; i < nbytes; i++) {
         if (vt_state[cur_vt].raw && ((char*)buf)[i] == '\x1b' && ((char*)buf)[i+1] == '[') {
             char * video_mem = vt_state[cur_vt].video_mem;
+            char attrib = vt_state[cur_vt].attrib;
             if (strncmp(((char*)buf) + i, "\x1b[2J", 4) == 0) {
                 int x, y;
                 for (y = 0; y < NUM_ROWS; y++) {
                     for (x = 0; x < NUM_COLS; x++) {
                         *(uint8_t *)(video_mem + ((NUM_COLS * y + x) << 1)) = ' ';
-                        *(uint8_t *)(video_mem + ((NUM_COLS * y + x) << 1) + 1) = ATTRIB;
+                        *(uint8_t *)(video_mem + ((NUM_COLS * y + x) << 1) + 1) = attrib;
                     }
                 }
                 i += 3;
@@ -209,7 +212,7 @@ int32_t vt_write(int32_t fd, const void* buf, int32_t nbytes) {
                 int x;
                 for (x = vt_state[cur_vt].screen_x; x < NUM_COLS; x++) {
                     *(uint8_t *)(video_mem + ((NUM_COLS * vt_state[cur_vt].screen_y + x) << 1)) = ' ';
-                    *(uint8_t *)(video_mem + ((NUM_COLS * vt_state[cur_vt].screen_y + x) << 1) + 1) = ATTRIB;
+                    *(uint8_t *)(video_mem + ((NUM_COLS * vt_state[cur_vt].screen_y + x) << 1) + 1) = attrib;
                 }
                 i += 2;
                 continue;
@@ -222,6 +225,22 @@ int32_t vt_write(int32_t fd, const void* buf, int32_t nbytes) {
                     vt_state[cur_vt].screen_x = screen_x;
                 }
                 redraw_cursor(cur_vt);
+                i += 7;
+                continue;
+            }
+            if (((char *)buf)[i+7] == 'M' && ((char *)buf)[i+4] == ';') {
+                char foreground, background;
+                if (((char *)buf)[i+2] == '3') {
+                    foreground = atoi(((char *)buf)[i+3]);
+                } else {
+                    foreground = atoi(((char *)buf)[i+3]) + 8;
+                }
+                if (((char *)buf)[i+5] == '4') {
+                    background = atoi(((char *)buf)[i+6]);
+                } else {
+                    background = atoi(((char *)buf)[i+6]) + 8;
+                }
+                vt_state[cur_vt].attrib = (background << 4) | foreground;
                 i += 7;
                 continue;
             }
@@ -240,13 +259,14 @@ int32_t vt_write(int32_t fd, const void* buf, int32_t nbytes) {
  */
 static void scroll_page(int term_idx) {
     char * video_mem = vt_state[term_idx].video_mem;
+    char attrib = vt_state[term_idx].attrib;
     int i;
     for (i = 0; i < NUM_ROWS - 1; i++) {
         memcpy(video_mem + ((NUM_COLS * i) * 2), video_mem + ((NUM_COLS * (i + 1)) * 2), NUM_COLS * 2 * sizeof(char));
     }
     for (i = 0; i < NUM_COLS; i++) {
         *(uint8_t *)(video_mem + ((NUM_COLS * (NUM_ROWS - 1) + i) << 1)) = ' ';
-        *(uint8_t *)(video_mem + ((NUM_COLS * (NUM_ROWS - 1) + i) << 1) + 1) = ATTRIB;
+        *(uint8_t *)(video_mem + ((NUM_COLS * (NUM_ROWS - 1) + i) << 1) + 1) = attrib;
     }
 }
 
@@ -275,6 +295,7 @@ static void print_newline(int term_idx) {
  */
 static void print_backspace(int term_idx) {
     char * video_mem = vt_state[term_idx].video_mem;
+    char attrib = vt_state[term_idx].attrib;
     vt_state[term_idx].screen_x--;
     if (vt_state[term_idx].screen_x < 0) {
         vt_state[term_idx].screen_x = NUM_COLS - 1;
@@ -285,7 +306,7 @@ static void print_backspace(int term_idx) {
         }
     }
     *(uint8_t *)(video_mem + ((NUM_COLS * vt_state[term_idx].screen_y + vt_state[term_idx].screen_x) << 1)) = ' ';
-    *(uint8_t *)(video_mem + ((NUM_COLS * vt_state[term_idx].screen_y + vt_state[term_idx].screen_x) << 1) + 1) = ATTRIB;
+    *(uint8_t *)(video_mem + ((NUM_COLS * vt_state[term_idx].screen_y + vt_state[term_idx].screen_x) << 1) + 1) = attrib;
 }
 
 /* redraw_cursor (PRIVATE)
@@ -476,8 +497,9 @@ void vt_putc(char c, int kbd) {
         print_backspace(term_idx);
     } else {
         char * video_mem = vt_state[term_idx].video_mem;
+        char attrib = vt_state[term_idx].attrib;
         *(uint8_t *)(video_mem + ((NUM_COLS * vt_state[term_idx].screen_y + vt_state[term_idx].screen_x) << 1)) = c;
-        *(uint8_t *)(video_mem + ((NUM_COLS * vt_state[term_idx].screen_y + vt_state[term_idx].screen_x) << 1) + 1) = ATTRIB;
+        *(uint8_t *)(video_mem + ((NUM_COLS * vt_state[term_idx].screen_y + vt_state[term_idx].screen_x) << 1) + 1) = attrib;
         vt_state[term_idx].screen_x++;
         if (vt_state[term_idx].screen_x >= NUM_COLS)
             print_newline(term_idx);

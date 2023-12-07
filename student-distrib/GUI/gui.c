@@ -1,5 +1,6 @@
 #include "gui.h"
 #include "background.h"
+#include "vt_image.h"
 #include "../types.h"
 #include "../lib.h"
 #include "text.h"
@@ -63,8 +64,8 @@ void draw_time() {
     time_str[7] = '0' + sec % 10;
     time_str[8] = '\0';
     int i, j;
-    for (i = 150; i < 182; i++) {
-        for (j = 434; j < 590; j++) {
+    for (i = 130; i < 162; ++i) {
+        for (j = 434; j < 590; ++j) {
             uint32_t pixel_color = 
              (((((bg[j + i * X_RESOLUTION] & RED_MASK) >> RED_OFF) << 3) & LOW_8_BITS) << 16)
             |(((((bg[j + i * X_RESOLUTION] & GRE_MASK) >> GRE_OFF) << 2) & LOW_8_BITS) << 8)
@@ -72,7 +73,7 @@ void draw_time() {
             *(uint32_t *)(qemu_memory + i * X_RESOLUTION + j) = pixel_color;
         }
     }
-    draw_string(434, 150 , time_str, 0xFFFFFFFF);
+    draw_string(SEC_START_X, SEC_START_Y , time_str, 0xFFFFFFFF);
     /* show date */
     char time_str1[12];
     time_str1[0] = '1';
@@ -86,9 +87,66 @@ void draw_time() {
     time_str1[8] = '2';
     time_str1[9] = '3';
     time_str1[10] = '\0';
-    draw_string(420, 100 , time_str1, 0xFFFFFFFF);
+    draw_string(DAY_START_X, DAY_START_Y , time_str1, 0xFFFFFFFF);
+}
+
+void vt_draw_string(int x, int y, int8_t* str, uint32_t color) {
+    int i, j ,k, index;
+    int cur_x, cur_y;
+    char* cur_char;
+    uint32_t pixel_color;
+    for (i = 0; i < strlen(str); ++i) {
+        cur_char = (char*)font_data[(uint8_t)(str[i])];
+        for (j = 0; j < FONT_HEIGHT; ++j) {
+            for (k = 0; k < FONT_WIDTH; ++k) {
+                cur_x = x + 8 * i + k, cur_y = y + j;
+                if (cur_char[j] & 1 << (FONT_WIDTH - k)) {
+                    pixel_color = 0;
+                    pixel_color |= color;
+                }
+                else {
+                    index = (cur_x - VT_START_X) + (cur_y - VT_START_Y) * VT_WIDTH;
+                    pixel_color = 
+                     (((((vt_image[index] & RED_MASK) >> RED_OFF) << 3) & LOW_8_BITS) << 16)
+                    |(((((vt_image[index] & GRE_MASK) >> GRE_OFF) << 2) & LOW_8_BITS) << 8)
+                    |(((( vt_image[index] & BLU_MASK) << BLU_OFF) & LOW_8_BITS));
+                }
+                *(uint32_t *)(qemu_memory + cur_y * X_RESOLUTION + cur_x) = pixel_color;
+            }
+        }
+    }
+}
+
+void fill_terminal(void) {
+    int i, j;
+    char* vidmem = VID_MEM_ADDR;
+    for (i = 0; i < VT_ROW; ++i) {
+        char cur_str[VT_COL + 1] = {0};
+        for (j = 0; j < VT_COL; ++j) {
+            if (*(vidmem + ((j + i * VT_COL) << 1)) != '\0') {
+                cur_str[j] = *(vidmem + ((j + i * VT_COL)<<1));
+            }
+        }
+        vt_draw_string(VT_START_X, VT_START_Y + 16 * i, cur_str, 0XFFFFFFFF);
+    }
+}
+
+void draw_terminal() {
+    int i, j;
+    int index;
+    for (i = VT_START_Y; i < VT_HEIGHT + VT_START_Y; ++i) {
+        for (j = VT_START_X; j < VT_WIDTH + VT_START_X; ++j) {
+            index = (j - VT_START_X) + (i - VT_START_Y) * VT_WIDTH;
+            uint32_t pixel_color = 
+             (((((vt_image[index] & RED_MASK) >> RED_OFF) << 3) & LOW_8_BITS) << 16)
+            |(((((vt_image[index] & GRE_MASK) >> GRE_OFF) << 2) & LOW_8_BITS) << 8)
+            |(((( vt_image[index] & BLU_MASK) << BLU_OFF) & LOW_8_BITS));
+            *(uint32_t *)(qemu_memory + i * X_RESOLUTION + j) = pixel_color;
+        }
+    }
 }
 
 void gui_set_up() {
     draw_background();
+    //draw_terminal();
 }

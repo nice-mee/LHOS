@@ -3,16 +3,20 @@
 #include "../i8259.h"
 #include "../filesys.h"
 #include "../pcb.h"
+#include "../GUI/gui.h"
+
+volatile int32_t max_freq = 32;
+volatile int32_t min_rate = 11;
 
 /* struct storing frequency and counter for process with
 different frequencies. Used to implement virtualization */
 typedef struct {
-    int32_t proc_exist;
     int32_t proc_freq;
     volatile int32_t proc_count;
 } proc_freqcount_pair;
 
 static proc_freqcount_pair RTC_proc_list[MAX_PROC_NUM];
+static int GUI_counter;
 
 operation_table_t RTC_operation_table = {
     .open_operation = RTC_open,
@@ -42,9 +46,77 @@ void RTC_init(void) {
     outb(RTC_A, RTC_PORT);     // set index to register A, disable NMI
     prev = inb(RTC_CMOS_PORT); // get the previous value of register B
     outb(RTC_A, RTC_PORT);     // set the index again
-    outb((prev & 0xF0) | RTC_BASE_RATE, RTC_CMOS_PORT);  // set the frequency to 2 Hz
+    outb((prev & 0xF0) | min_rate, RTC_CMOS_PORT);  // set the frequency to 2 Hz
+
+    int i;
+    for (i = 0; i < MAX_PROC_NUM; ++i) {
+        RTC_proc_list[i].proc_freq = 2;
+        RTC_proc_list[i].proc_count = max_freq / 2;
+    }
+    GUI_counter = (max_freq / 2);
 
     enable_irq(RTC_IRQ);
+}
+
+void set_RTC_freq(void) {
+    switch (max_freq) {
+        case 32768:
+            min_rate = 1;
+            break;
+        case 16384:
+            min_rate = 2;
+            break;
+        case 8192:
+            min_rate = 3;
+            break;
+        case 4096:
+            min_rate = 4;
+            break;
+        case 2048:
+            min_rate = 5;
+            break;
+        case 1024:
+            min_rate = 6;
+            break;
+        case 512:
+            min_rate = 7;
+            break;
+        case 256:
+            min_rate = 8;
+            break;
+        case 128:
+            min_rate = 9;
+            break;
+        case 64:
+            min_rate = 10;
+            break;
+        case 32:
+            min_rate = 11;
+            break;
+        case 16:
+            min_rate = 12;
+            break;
+        case 8:
+            min_rate = 13;
+            break;
+        case 4:
+            min_rate = 14;
+            break;
+        case 2:
+            min_rate = 15;
+            break;
+        default:
+            break;
+    }
+    outb(RTC_A, RTC_PORT);     // set index to register A, disable NMI
+    char prev = inb(RTC_CMOS_PORT); // get the previous value of register B
+    outb(RTC_A, RTC_PORT);     // set the index again
+    outb((prev & 0xF0) | min_rate, RTC_CMOS_PORT);  // set the frequency to the max freq
+    int i;
+    for(i=0; i < MAX_PROC_NUM; i++) {
+        RTC_proc_list[i].proc_count = max_freq / RTC_proc_list[i].proc_freq;
+    }
+    GUI_counter = (max_freq / 2);
 }
 
 
@@ -65,6 +137,14 @@ void __intr_RTC_handler(void) {
     for (pid = 0; pid < MAX_PROC_NUM; ++pid) {
             RTC_proc_list[pid].proc_count --;
     }
+    get_date();
+    cli();
+    if(--GUI_counter == 0) {
+        draw_terminal();
+        fill_terminal();
+        GUI_counter = (max_freq / 2);
+    }
+    sti();
     outb(RTC_C &0x0F, RTC_PORT); // select register C
     inb(RTC_CMOS_PORT);		    // just throw away contents
 
@@ -93,10 +173,6 @@ int32_t RTC_open(const uint8_t* fd) {
             cur_fd->inode_index = 0;
             cur_fd->file_position = 0;
             cur_fd->flags = IN_USE;
-            /* set process's freq and existence status */
-            RTC_proc_list[i].proc_freq = 2;
-            RTC_proc_list[i].proc_count = RTC_BASE_FREQ / 2; 
-            RTC_proc_list[i].proc_exist = 1;
             return i;
         }
     }
@@ -124,8 +200,6 @@ int32_t RTC_close(int32_t fd) {
 
     /* free that file descriptor if every thing all right */
     cur_fd->flags = READY_TO_BE_USED;
-    /* invalidate the process's existence status */
-    RTC_proc_list[cur_pcb->pid].proc_exist = 0;
     return 0;
 }
 
@@ -150,7 +224,7 @@ int32_t RTC_read(int32_t fd, void* buf, int32_t nbytes) {
     /* reset counter */
     cli();
     if(RTC_proc_list[proc_id].proc_freq)
-        RTC_proc_list[proc_id].proc_count = RTC_BASE_FREQ / RTC_proc_list[proc_id].proc_freq;
+        RTC_proc_list[proc_id].proc_count = max_freq / RTC_proc_list[proc_id].proc_freq;
     sti();
     return 0;
 }
@@ -181,7 +255,11 @@ int32_t RTC_write(int32_t fd, const void* buf, int32_t nbytes) {
     int32_t proc_id = get_current_pid();
     cli();
     RTC_proc_list[proc_id].proc_freq = freq;
-    RTC_proc_list[proc_id].proc_count = RTC_BASE_FREQ / RTC_proc_list[proc_id].proc_freq;
+    if(freq > max_freq) {
+        max_freq = freq;
+        set_RTC_freq();
+    }
+    RTC_proc_list[proc_id].proc_count = max_freq / freq;
     sti();
     return 0;
 }

@@ -11,6 +11,7 @@
 #define INPUT_BUF_SIZE 128
 #define NUM_TERMS 3
 #define NUM_CMDS 11
+#define NUM_HIST 10
 
 extern void vt_init();
 extern int32_t vt_open(const uint8_t* id);
@@ -30,7 +31,7 @@ int32_t vt_ioctl(int32_t flag);
 
 int32_t show_memory_usage(void);
 extern int32_t vt_write_foreground(int32_t fd, const void* buf, int32_t nbytes);
-
+void command_history();
 extern operation_table_t stdin_operation_table;
 extern operation_table_t stdout_operation_table;
 

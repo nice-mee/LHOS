@@ -49,6 +49,18 @@ void send_signal(int32_t signum){
     return;
 }
 
+void send_signal_by_pid(int32_t signum, int32_t pid){
+    pcb_t* cur_pcb = get_pcb_by_pid(pid);
+    /* if signum is invalid or get_current_pcb fails, send fails */
+    if(signum < 0 || signum > 4 || cur_pcb == NULL) return;
+
+    cli();
+    /* if the signal is INTERRUPT, do we need to change the cur_pcb ?????????????? I saw CZY does so */
+    cur_pcb->signals[signum].sa_activate = SIG_ACTIVATED;
+    sti();
+    return;
+}
+
 /* handle_signal - handle the signal, called everytime when returning to user space, should be called in return-to-user space linkage
  * Inputs: None
  * Outputs: None

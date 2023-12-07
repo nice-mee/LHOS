@@ -382,8 +382,7 @@ static void process_default(keycode_t keycode, int release) {
     }
 
     if (vt_state[foreground_vt].kbd.ctrl && keycode == KEY_C) { // Ctrl + C
-        vt_state[foreground_vt].halt_pending = 1;
-        send_signal(SIGNUM_INTERRUPT);
+        send_signal_by_pid(SIGNUM_INTERRUPT, vt_state[foreground_vt].active_pid);
         return;
     }
 

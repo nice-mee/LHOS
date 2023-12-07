@@ -70,6 +70,7 @@ typedef struct HW_Context{
 void __signal_ignore(void);
 void __signal_kill_task(void);
 void send_signal(int32_t signum);
+void send_signal_by_pid(int32_t signum, int32_t pid);
 void handle_signal(void);
 void EXECUTE_SIGRETURN(void);
 void EXECUTE_SIGRETURN_END(void);

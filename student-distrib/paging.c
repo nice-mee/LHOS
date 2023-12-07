@@ -53,6 +53,15 @@ void paging_init(){
     page_table[VID_MEM_POS + 3].P = 1;
     page_table[VID_MEM_POS + 3].ADDR = VID_MEM_POS + 3;
 
+    page_table[GUI_VID_MEM_POS].P    = 1;
+    page_table[GUI_VID_MEM_POS].ADDR = GUI_VID_MEM_POS;
+    page_table[GUI_VID_MEM_POS + 1].P = 1;
+    page_table[GUI_VID_MEM_POS + 1].ADDR = GUI_VID_MEM_POS + 1;
+    page_table[GUI_VID_MEM_POS + 2].P = 1;
+    page_table[GUI_VID_MEM_POS + 2].ADDR = GUI_VID_MEM_POS + 2;
+    page_table[GUI_VID_MEM_POS + 3].P = 1;
+    page_table[GUI_VID_MEM_POS + 3].ADDR = GUI_VID_MEM_POS + 3;
+
     // Initialize page directories
     for (i = 0; i < DIR_TBL_SIZE; i++) {
         page_directory[i].P    = 0;

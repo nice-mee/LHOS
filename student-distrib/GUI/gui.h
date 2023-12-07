@@ -24,7 +24,7 @@
 #define SEC_START_X 434
 #define SEC_START_Y 130
 
-#define VID_MEM_ADDR 0xE0000
+#define GUI_VID_MEM_ADDR 0xE0000
 
 extern void gui_set_up();
 extern void draw_time();

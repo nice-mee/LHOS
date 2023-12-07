@@ -3,12 +3,14 @@
 
 #include "vt.h"
 
-#define VIDEO       0xE0000
+static int32_t VIDEO = 0xB8000;
 #define FOUR_KB     0x1000
 #define VID_BUF_SIZE (80 * 25 * 2)
 #define NUM_COLS    80
 #define NUM_ROWS    25
 #define ATTRIB      0x7
+
+static int32_t gui_activated = 0;
 
 static int8_t keycode_to_printable_char[2][128] =
 {
@@ -46,30 +48,10 @@ operation_table_t stdout_operation_table = {
     .write_operation = vt_write
 };
 
-typedef struct {
-    int screen_x;
-    int screen_y;
-    char* video_mem;
-    keyboard_state_t kbd;
-    char input_buf[INPUT_BUF_SIZE]; // Temporary buffer for storing user input
-    volatile int input_buf_ptr;
-    volatile int enter_pressed;
-    char user_buf[INPUT_BUF_SIZE]; // Buffer for storing user input after enter is pressed
-    char buf_history[NUM_HIST][INPUT_BUF_SIZE];
-    int cur_cmd_idx;
-    int cur_cmd_cnt;
-    int nbytes_read;
-    uint32_t active_pid; // default as -1
-    uint32_t esp;
-    uint32_t ebp;
-    uint32_t halt_pending;
-    int32_t raw;
-    int8_t attrib;
-} vt_state_t;
 
-static vt_state_t vt_state[NUM_TERMS];
-static int cur_vt = 0;
-static int foreground_vt = 0;
+vt_state_t vt_state[NUM_TERMS];
+int cur_vt = 0;
+int foreground_vt = 0;
 
 static void redraw_cursor(int term_idx);
 
@@ -387,6 +369,20 @@ static void process_default(keycode_t keycode, int release) {
 
     if (vt_state[foreground_vt].kbd.ctrl && keycode == KEY_M) { // Ctrl + M
         show_memory_usage();        // show memory usage
+        return;
+    }
+
+    if (vt_state[foreground_vt].kbd.ctrl && keycode == KEY_G) { // Ctrl + G
+        if (gui_activated) return;
+        VIDEO = 0xE0000;
+        vt_state[foreground_vt].video_mem = VIDEO;
+        memcpy(VIDEO, (void *)0xB8000, VID_BUF_SIZE);
+        memcpy(VIDEO + FOUR_KB, (void *)0xB8000, VID_BUF_SIZE);
+        memcpy(VIDEO + 2 * FOUR_KB, (void *)0xB8000, VID_BUF_SIZE);
+        memcpy(VIDEO + 3 * FOUR_KB, (void *)0xB8000, VID_BUF_SIZE);
+        program_bga(X_RESOLUTION, Y_RESOLUTION, BITS_PER_PIXEL);
+        gui_set_up();
+        gui_activated = 1;
         return;
     }
 

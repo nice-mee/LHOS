@@ -139,7 +139,7 @@ char* my_strcpy(char *dest, const char *src) {
 
 void fill_terminal(void) {
     int i, j;
-    char* vidmem = VID_MEM_ADDR;
+    char* vidmem = GUI_VID_MEM_ADDR;
     for (i = 0; i < VT_ROW; ++i) {
         char cur_str[VT_COL + 1] = {0};
         for (j = 0; j < VT_COL; ++j) {

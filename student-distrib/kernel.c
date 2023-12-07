@@ -168,8 +168,6 @@ void entry(unsigned long magic, unsigned long addr) {
     paging_init();
     dynamic_allocation_init();
 
-    program_bga(X_RESOLUTION, Y_RESOLUTION, BITS_PER_PIXEL);
-    gui_set_up();
 
     /* Enable interrupts */
     /* Do not enable the following until after you have set up your

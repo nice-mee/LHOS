@@ -15,6 +15,7 @@ int32_t ece391_getline(char* buf, int32_t fd, int32_t n);
 #define MAX_COLS         1200
 #define MAX_ROWS         1000
 #define NANI_STATIC_BUF_ADDR 0x07000000
+#define NANI_FILEBUF_ADDR 0x07C00000
 #define NANI_STATUS_BAR_LINEINFO_START 55
 #define NANI_TAB_SIZE 4
 #define COMMAND_BUF_SIZE 51
@@ -114,6 +115,7 @@ typedef struct nani_state {
     struct append_buf abuf;
     char filename[33];
     struct editor_syntax *syntax;
+    int dirty;
 } nani_state_t;
 
 #define HLDB_ENTRIES (sizeof(HLDB) / sizeof(HLDB[0]))
@@ -460,6 +462,7 @@ void erow_append_string(erow_t *row, char *s, int32_t len) {
     row->size += len;
     ece391_memcpy(&row->chars[at], s, len);
     erow_update_render(row);
+    NANI.dirty++;
 }
 
 void erow_insert_char(erow_t *row, int at, char c) {
@@ -472,6 +475,7 @@ void erow_insert_char(erow_t *row, int at, char c) {
     row->chars[at] = c;
     row->size++;
     erow_update_render(row);
+    NANI.dirty++;
 }
 
 
@@ -483,6 +487,31 @@ void erow_delete_char(erow_t *row, int at) {
     }
     row->size--;
     erow_update_render(row);
+    NANI.dirty++;
+}
+
+int erow_to_filebuf() {
+    char *p = (char *)NANI_FILEBUF_ADDR;
+    int i, len = 0;
+    for (i = 0; i < NANI.numrows; i++) {
+        ece391_memcpy(p, NANI.row[i].chars, NANI.row[i].size);
+        p += NANI.row[i].size;
+        *p = '\n';
+        p++;
+        len += NANI.row[i].size + 1;
+    }
+    return len;
+}
+
+static int32_t NANI_save() {
+    int32_t fd;
+    int32_t len = erow_to_filebuf();
+    if (-1 == (fd = ece391_open (NANI.filename))) {
+    }
+    ece391_write(fd, (uint8_t *)NANI_FILEBUF_ADDR, len);
+    ece391_close(fd);
+    NANI.dirty = 0;
+    return 0;
 }
 
 void NANI_delete_row(int at) {
@@ -613,6 +642,10 @@ static void NANI_update_screen() {
     abuf_append(&NANI.abuf, "\x1b[30;47M", 8); // Set color to black on white
     abuf_append(&NANI.abuf, "\x1b[K", 4);
     int left_padding = (NUM_TERM_COLS - ece391_strlen((uint8_t *)NANI.filename)) / 2;
+    if (NANI.dirty) {
+        abuf_append(&NANI.abuf, "[edited]", 8);
+        left_padding -= 8;
+    }
     while (left_padding--)
         abuf_append(&NANI.abuf, " ", 1);
     abuf_append(&NANI.abuf, NANI.filename, ece391_strlen((uint8_t *)NANI.filename));
@@ -882,8 +915,25 @@ static void NANI_find(char *query) {
 
 static void NANI_command_response_colon(char *command, int len) {
     if (command[1] == 'w' && len == 2) {
-        ece391_memcpy(NANI.statusmsg, "E: Not implemented", 18);
+        if (NANI.filename[0] == '\0') {
+            ece391_memcpy(NANI.statusmsg, "E: No filename specified, please force quit", 43);
+        } else {
+            if (NANI.dirty) NANI_save();
+        }
     } else if (command[1] == 'q' && len == 2) {
+        if (NANI.dirty) {
+            ece391_memcpy(NANI.statusmsg, "E: File has unsaved changes", 27);
+        } else {
+            NANI_clear_screen();
+            ece391_ioctl(1, 0); // Disable raw mode
+            ece391_halt(0);
+        }
+    } else if (command[1] == 'w' && command[2] == 'q' && len == 3) {
+        if (NANI.dirty) NANI_save();
+        NANI_clear_screen();
+        ece391_ioctl(1, 0); // Disable raw mode
+        ece391_halt(0);
+    } else if (command[1] == 'q' && command[2] == '!' && len == 3) {
         NANI_clear_screen();
         ece391_ioctl(1, 0); // Disable raw mode
         ece391_halt(0);
@@ -1030,6 +1080,7 @@ static void NANI_init() {
     NANI.command.command[0] = '\0';
     NANI.syntax = &HLDB[0];
     abuf_init(&NANI.abuf);
+    NANI.dirty = 0;
 }
 
 static char line_buf[MAX_COLS + 1];
@@ -1058,6 +1109,7 @@ int main()
     int32_t fd;
     uint8_t buf[200];
     NANI_init();
+    ece391_memset(NANI.filename, 0, 33);
     if (ece391_getargs (buf, 200) != -1) {
         if (-1 == (fd = ece391_open (buf))) {
             ece391_fdputs (1, (uint8_t*)"file not found\n");

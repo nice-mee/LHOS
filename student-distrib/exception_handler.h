@@ -9,5 +9,5 @@
 extern void __##name() \
 { \
     printf("Exception 0x%x: " str "\n" , idtvec); \
-    send_signal(SIGNUM_INTERRUPT); \
+    send_signal(SIGNUM_SEGFAULT); \
 }

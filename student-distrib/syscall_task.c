@@ -440,7 +440,7 @@ int32_t __syscall_sigreturn(void){
     asm ("movl %%ebp, %0" : "=r" (ebp0));
     
     /* copy the handware context */
-    HW_Context_t* newcontext = (HW_Context_t*)(ebp0 + 20);                      // OFFSET extremely uncertain!!! Need Fixed
+    HW_Context_t* newcontext = (HW_Context_t*)(ebp0 + 8);                      // OFFSET extremely uncertain!!! Need Fixed
     uint32_t user_esp = newcontext->esp;
     HW_Context_t* oldcontext = (HW_Context_t*)(user_esp + 4);                   // OFFSET extremely uncertain!!! Need Fixed
     memcpy(newcontext, oldcontext, sizeof(HW_Context_t));
@@ -448,5 +448,5 @@ int32_t __syscall_sigreturn(void){
     for(i = 0; i < SIG_NUM; i++){
         cur_pcb->signals[i].sa_masked = SIG_UNMASK;
     }
-    return 0;
+    return newcontext->eax;
 }

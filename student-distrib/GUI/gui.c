@@ -137,9 +137,23 @@ char* my_strcpy(char *dest, const char *src) {
     return saved;
 }
 
+
+void draw_terminal_line(int row) {
+    int j, index;
+    for (j = VT_START_X; j < VT_WIDTH + VT_START_X; ++j) {
+            index = (j - VT_START_X) + (row - VT_START_Y) * VT_WIDTH;
+            uint32_t pixel_color = 
+             (((((vt_image[index] & RED_MASK) >> RED_OFF) << 3) & LOW_8_BITS) << 16)
+            |(((((vt_image[index] & GRE_MASK) >> GRE_OFF) << 2) & LOW_8_BITS) << 8)
+            |(((( vt_image[index] & BLU_MASK) << BLU_OFF) & LOW_8_BITS));
+            *(uint32_t *)(qemu_memory + row * X_RESOLUTION + j) = pixel_color;
+        }
+}
+
 void fill_terminal(void) {
     int i, j;
-    char* vidmem = GUI_VID_MEM_ADDR;
+    char* vidmem;
+    vidmem = (char*)GUI_VID_MEM_ADDR;
     for (i = 0; i < VT_ROW; ++i) {
         char cur_str[VT_COL + 1] = {0};
         for (j = 0; j < VT_COL; ++j) {
@@ -158,17 +172,6 @@ void fill_terminal(void) {
     }
 }
 
-void draw_terminal_line(int row) {
-    int j, index;
-    for (j = VT_START_X; j < VT_WIDTH + VT_START_X; ++j) {
-            index = (j - VT_START_X) + (row - VT_START_Y) * VT_WIDTH;
-            uint32_t pixel_color = 
-             (((((vt_image[index] & RED_MASK) >> RED_OFF) << 3) & LOW_8_BITS) << 16)
-            |(((((vt_image[index] & GRE_MASK) >> GRE_OFF) << 2) & LOW_8_BITS) << 8)
-            |(((( vt_image[index] & BLU_MASK) << BLU_OFF) & LOW_8_BITS));
-            *(uint32_t *)(qemu_memory + row * X_RESOLUTION + j) = pixel_color;
-        }
-}
 
 void draw_terminal() {
     int i, j;

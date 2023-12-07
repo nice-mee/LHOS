@@ -3,12 +3,15 @@
  */
 
 #include "paging.h"
+#include "dynamic_alloc.h"
 #include "lib.h"
 
 void paging_init(){
     
     memset(page_table, 0, sizeof(PTE_t) * DIR_TBL_SIZE);
     memset(page_directory, 0, sizeof(PDE_t) * DIR_TBL_SIZE);
+    memset(vidmap_table, 0, sizeof(PDE_t) * DIR_TBL_SIZE);
+    memset(dynamic_tables, 0, sizeof(PTE_t) * MAX_PID_NUM);
 
     // Initialize the page table.
     int i;
@@ -69,9 +72,43 @@ void paging_init(){
     page_directory[1].PS   = 1; // 4MB page
     page_directory[1].ADDR = KERNEL_ADDR >> 12;
 
+    // Set MAX_PID_NUM dynamic memory page
+    page_directory[DYNAMIC_MEMORY_START >> 22].P = 1;
+    page_directory[DYNAMIC_MEMORY_START >> 22].US = 1;
+    page_directory[DYNAMIC_MEMORY_START >> 22].ADDR = (uint32_t)(dynamic_tables) >> 12;
+    for (i = 0; i < PAGE_TBL_SIZE; i++) {
+        dynamic_tables[i].P    = 0;
+        dynamic_tables[i].RW   = 1;
+        dynamic_tables[i].US   = 1;
+        dynamic_tables[i].PWT  = 0;
+        dynamic_tables[i].PCD  = 0;
+        dynamic_tables[i].A    = 0;
+        dynamic_tables[i].D    = 0;
+        dynamic_tables[i].PAT  = 0;
+        dynamic_tables[i].G    = 0;
+        dynamic_tables[i].AVL  = 0;
+        dynamic_tables[i].ADDR = (DYNAMIC_MEMORY_START + i * PAGE_SIZE) >> 12;
+    }
+
     // Initialize the page directory for 4kB page tables.
     page_directory[0].P    = 1;
     page_directory[0].ADDR = (uint32_t)page_table >> 12;
+
+    // NANI buffer for erow_t
+    page_directory[NANI_STATIC_BUF_ADDR >> 22].P = 1;
+    page_directory[NANI_STATIC_BUF_ADDR >> 22].US = 1;
+    page_directory[NANI_STATIC_BUF_ADDR >> 22].PS = 1;
+    page_directory[NANI_STATIC_BUF_ADDR >> 22].ADDR = NANI_STATIC_BUF_ADDR >> 12;
+    page_directory[(NANI_STATIC_BUF_ADDR + FOUR_MB) >> 22].P = 1;
+    page_directory[(NANI_STATIC_BUF_ADDR + FOUR_MB) >> 22].US = 1;
+    page_directory[(NANI_STATIC_BUF_ADDR + FOUR_MB) >> 22].PS = 1;
+    page_directory[(NANI_STATIC_BUF_ADDR + FOUR_MB) >> 22].ADDR = (NANI_STATIC_BUF_ADDR + FOUR_MB) >> 12;
+    // NANI buffer for writing file
+    page_directory[(NANI_STATIC_BUF_ADDR + 2 * FOUR_MB) >> 22].P = 1;
+    page_directory[(NANI_STATIC_BUF_ADDR + 2 * FOUR_MB) >> 22].US = 1;
+    page_directory[(NANI_STATIC_BUF_ADDR + 2 * FOUR_MB) >> 22].PS = 1;
+    page_directory[(NANI_STATIC_BUF_ADDR + 2 * FOUR_MB) >> 22].ADDR = (NANI_STATIC_BUF_ADDR + 2 * FOUR_MB) >> 12;
+
 
     // Code for manipulating control registers to enable paging.
     asm volatile(

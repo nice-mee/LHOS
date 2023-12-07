@@ -33,7 +33,7 @@ void __intr_PIT_handler(void) {
     alarm_signal_counter++;
     if(alarm_signal_counter >= 1000){
         alarm_signal_counter = 0;
-        send_signal(SIGNUM_ALARM);
+        send_signal_by_pid(SIGNUM_ALARM, 3);
     }
     send_eoi(PIT_IRQ);
     scheduler();

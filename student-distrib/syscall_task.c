@@ -219,7 +219,7 @@ int32_t __syscall_execute(const uint8_t* command) {
         if(i <= 2) cur_pcb->signals[i].sa_handler = __signal_kill_task;
         else    cur_pcb->signals[i].sa_handler = __signal_ignore;
         cur_pcb->signals[i].sa_activate = SIG_UNACTIVATED;
-        cur_pcb->signals[i].sa_masked = SIG_MASK;
+        cur_pcb->signals[i].sa_masked = SIG_UNMASK;
     }
 
     // set TSS

@@ -76,7 +76,7 @@ void handle_signal(void){
     asm ("movl %%ebp, %0" : "=r" (ebp0));
     /* checking pending signals */
     for(i = 0; i < SIG_NUM; i++){
-        if(cur_pcb->signals[i].sa_activate == SIG_ACTIVATED){
+        if(cur_pcb->signals[i].sa_activate == SIG_ACTIVATED && cur_pcb->signals[i].sa_masked == SIG_UNMASK){
             cur_pcb->signals[i].sa_activate = SIG_UNACTIVATED;
             signum = i;
             signal_handler = cur_pcb->signals[i].sa_handler;
@@ -94,6 +94,17 @@ void handle_signal(void){
     /* if handler is in kernel, directly call it and return */
     if(signal_handler == __signal_ignore || signal_handler == __signal_kill_task){
         ((void(*)())signal_handler)();
+        for(i = 0; i < SIG_NUM; i++){
+            cur_pcb->signals[i].sa_masked = SIG_UNMASK;
+        }
+        return;
+    }
+
+    if (signum == SIGNUM_ALARM) {
+        ((void(*)())signal_handler)();
+        for(i = 0; i < SIG_NUM; i++){
+            cur_pcb->signals[i].sa_masked = SIG_UNMASK;
+        }
         return;
     }
 

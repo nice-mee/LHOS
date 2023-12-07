@@ -11,7 +11,7 @@ int32_t ece391_getline(char* buf, int32_t fd, int32_t n);
 
 #define NULL 0
 #define NUM_TERM_COLS    (80 - 1)
-#define NUM_TERM_ROWS    (25 - 1)
+#define NUM_TERM_ROWS    (25 - 2)
 #define MAX_COLS         1200
 #define MAX_ROWS         1000
 #define NANI_STATIC_BUF_ADDR 0x07000000
@@ -122,14 +122,40 @@ static char *C_HL_keywords[] = {
     "void|", NULL
 };
 
+static char *PY_HL_extensions[] = {".py", NULL};
+
+static char *PY_HL_keywords[] = {
+    "and", "as", "assert", "break", "class", "continue", "def", "del", "elif",
+    "else", "except", "exec", "finally", "for", "from", "global", "if", "import",
+    "in", "is", "lambda", "not", "or", "pass", "print", "raise", "return", "try",
+    "while", "with", "yield", 
+    
+    NULL
+};
+
+
 static struct editor_syntax HLDB[] = {
     {
-        "c",
+        "Plain Text",
+        NULL,
+        NULL,
+        NULL,
+        0
+    },
+    {
+        "C/C++",
         C_HL_extensions,
         C_HL_keywords,
         "//",
         HL_HIGHLIGHT_NUMBERS | HL_HIGHLIGHT_STRINGS
     },
+    {
+        "Python",
+        PY_HL_extensions,
+        PY_HL_keywords,
+        "#",
+        HL_HIGHLIGHT_NUMBERS | HL_HIGHLIGHT_STRINGS
+    }
 };
 
 char itoa(int n) {
@@ -139,6 +165,10 @@ char itoa(int n) {
 
 int is_digit(char c) {
     return c >= '0' && c <= '9';
+}
+
+int is_hex_digit(char c) {
+    return is_digit(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
 }
 
 int is_seperator(char c) {
@@ -217,13 +247,11 @@ void NANI_syntax_to_color(int hl) {
 }
 
 void NANI_select_syntax() {
-    NANI.syntax = &HLDB[0];
+    NANI.syntax = &HLDB[1];
 }
 
 void erow_update_syntax(erow_t *row) {
     ece391_memset(row->hl, HL_NORMAL, row->rsize);
-
-    if (NANI.syntax == NULL) return;
 
     char **keywords = NANI.syntax->keywords;
 
@@ -232,11 +260,12 @@ void erow_update_syntax(erow_t *row) {
 
     int i = 0;
     int prev_is_seperator = 1;
+    int in_hex = 0;
     int in_string = 0;
     while (i < row->rsize) {
         char c = row->render[i];
         // Highlight comments
-        if (scs_len && !in_string && i + scs_len <= row->rsize) {
+        if (scs_len && !in_string && i + scs_len <= row->rsize && scs != NULL) {
             if (!ece391_strncmp((uint8_t *)&row->render[i], (uint8_t *)scs, scs_len)) {
                 ece391_memset((uint8_t *)&row->hl[i], HL_COMMENT, row->rsize - i);
                 break;
@@ -244,36 +273,55 @@ void erow_update_syntax(erow_t *row) {
         }
 
         // Highlight strings
-        if (in_string) {
-            row->hl[i] = HL_STRING;
-            if (c == '\\' && i + 1 < row->rsize) {
-                row->hl[i + 1] = HL_STRING;
-                i += 2;
-                continue;
-            }
-            if (c == in_string) in_string = 0;
-            i++;
-            prev_is_seperator = 1;
-            continue;
-        } else {
-            if (c == '"' || c == '\'') {
-                in_string = c;
+        if (NANI.syntax->flags & HL_HIGHLIGHT_STRINGS) {
+            if (in_string) {
                 row->hl[i] = HL_STRING;
+                if (c == '\\' && i + 1 < row->rsize) {
+                    row->hl[i + 1] = HL_STRING;
+                    i += 2;
+                    continue;
+                }
+                if (c == in_string) in_string = 0;
                 i++;
+                prev_is_seperator = 1;
                 continue;
+            } else {
+                if (c == '"' || c == '\'') {
+                    in_string = c;
+                    row->hl[i] = HL_STRING;
+                    i++;
+                    continue;
+                }
             }
         }
 
         // Highlight numbers
-        if ((is_digit(c) && (prev_is_seperator || (i > 0 && row->hl[i - 1] == HL_NUMBER))) || (i > 0 && c == '.' && row->hl[i-1] == HL_NUMBER)) {
-            row->hl[i] = HL_NUMBER;
-            prev_is_seperator = 0;
-            i++;
-            continue;
+        if (NANI.syntax->flags & HL_HIGHLIGHT_NUMBERS) {
+            if (in_hex && is_hex_digit(c)) {
+                row->hl[i] = HL_NUMBER;
+                i++;
+                continue;
+            }
+            if (i + 2 < row->rsize && c == '0' && row->render[i + 1] == 'x' && is_digit(row->render[i + 2]) && (prev_is_seperator || (i > 0 && row->hl[i - 1] == HL_NUMBER))) {
+                row->hl[i] = HL_NUMBER;
+                row->hl[i + 1] = HL_NUMBER;
+                row->hl[i + 2] = HL_NUMBER;
+                prev_is_seperator = 0;
+                i += 3;
+                in_hex = 1;
+                continue;
+            }
+            if ((is_digit(c) && (prev_is_seperator || (i > 0 && row->hl[i - 1] == HL_NUMBER))) || (i > 0 && c == '.' && row->hl[i-1] == HL_NUMBER)) {
+                row->hl[i] = HL_NUMBER;
+                prev_is_seperator = 0;
+                i++;
+                continue;
+            }
         }
+        in_hex = 0;
 
         // Highlight keywords
-        if (prev_is_seperator) {
+        if (prev_is_seperator && keywords != NULL) {
             int j;
             for (j = 0; keywords[j] != NULL; j++) {
                 int klen = ece391_strlen((uint8_t *)keywords[j]);
@@ -479,9 +527,9 @@ static void NANI_draw_status_bar() {
     status[i++] = '|';
     status[i++] = ' ';
     for (; i < 79; i++) {
-        if (NANI.filename[i - NANI_STATUS_BAR_LINEINFO_START - 12] == '\0')
+        if (NANI.syntax->filetype[i - NANI_STATUS_BAR_LINEINFO_START - 12] == '\0')
             break;
-        status[i] = NANI.filename[i - NANI_STATUS_BAR_LINEINFO_START - 12];
+        status[i] = NANI.syntax->filetype[i - NANI_STATUS_BAR_LINEINFO_START - 12];
     }
     abuf_append(&NANI.abuf, &status[50], 29);
 }
@@ -491,6 +539,16 @@ static void NANI_update_screen() {
     
     // Reset cursor to topleft
     abuf_append(&NANI.abuf, "\x1b[H", 3);
+
+    // Draw Title
+    abuf_append(&NANI.abuf, "\x1b[30;47M", 8); // Set color to black on white
+    abuf_append(&NANI.abuf, "\x1b[K", 4);
+    int left_padding = (NUM_TERM_COLS - ece391_strlen((uint8_t *)NANI.filename)) / 2;
+    while (left_padding--)
+        abuf_append(&NANI.abuf, " ", 1);
+    abuf_append(&NANI.abuf, NANI.filename, ece391_strlen((uint8_t *)NANI.filename));
+    abuf_append(&NANI.abuf, "\x1b[37;40M", 8); // Reset color
+    abuf_append(&NANI.abuf, "\n", 1);
 
     // Draw lines
     int scr_y;
@@ -534,8 +592,8 @@ static void NANI_update_screen() {
 
     // Draw cursor
     char cursor_cmd[8] = "\x1b[00;00H";
-    cursor_cmd[2] = itoa((NANI.screen_y - NANI.rowoff) / 10);
-    cursor_cmd[3] = itoa((NANI.screen_y - NANI.rowoff) % 10);
+    cursor_cmd[2] = itoa((1 + NANI.screen_y - NANI.rowoff) / 10);
+    cursor_cmd[3] = itoa((1 + NANI.screen_y - NANI.rowoff) % 10);
     cursor_cmd[5] = itoa((NANI.render_x - NANI.coloff) / 10);
     cursor_cmd[6] = itoa((NANI.render_x - NANI.coloff) % 10);
     abuf_append(&NANI.abuf, cursor_cmd, 8);
@@ -901,6 +959,7 @@ static void NANI_init() {
     NANI.search_direction = 1;
     NANI.command.len = 0;
     NANI.command.command[0] = '\0';
+    NANI.syntax = &HLDB[0];
     abuf_init(&NANI.abuf);
 }
 

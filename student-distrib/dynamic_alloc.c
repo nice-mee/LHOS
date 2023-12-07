@@ -48,7 +48,7 @@ void* malloc(int32_t size){
             start_index += cur_DA_node->used_bytes_num + cur_DA_node->available_bytes_num - size - sizeof(dynamic_allocation_node_t);
             end_index = (start_index + size + sizeof(dynamic_allocation_node_t) - 1) / PAGE_SIZE;
             start_index = start_index / PAGE_SIZE;
-            for(i = start_index; i <= end_index; i++){
+            for(i = (start_index > 1 ? start_index - 1 : start_index) ; i <= (end_index <= 1022 ? end_index + 1 : end_index) ; i++){
                 dynamic_tables[i].P = 1;
                 block_used[i]++;
             }
@@ -91,7 +91,7 @@ int32_t free(void* ptr){
     dynamic_allocation_node_t* cur_DA_node = DA_head_node.next;
     dynamic_allocation_node_t* prev_node;
     dynamic_allocation_node_t* next_node;
-    int32_t i;
+    int32_t i, start_index, end_index;
     
     /* if ptr is invalid or only has head node (nothing has been allocated yet), free fails */
     if(ptr == NULL || cur_DA_node == NULL) return -1;
@@ -109,7 +109,9 @@ int32_t free(void* ptr){
             if(next_node != NULL) next_node->prev = prev_node;
 
             /* finally, turn off the relevant page structure */
-            for(i = cur_DA_node->start_index; i <= cur_DA_node->end_index; i++){
+            start_index = cur_DA_node->start_index;
+            end_index = cur_DA_node->end_index;
+            for(i = (start_index > 1 ? start_index - 1 : start_index) ; i <= (end_index <= 1022 ? end_index + 1 : end_index) ; i++){
                 block_used[i]--;
                 /* if no other allocation in this PTE, turn it off */
                 if(block_used[i] == 0) dynamic_tables[i].P = 0;

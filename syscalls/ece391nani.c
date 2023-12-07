@@ -56,6 +56,7 @@ enum NANI_highlight {
     HL_SEARCH_MATCH,
     HL_STRING,
     HL_COMMENT,
+    HL_MULTI_COMMENT,
     HL_KEYWORD1,
     HL_KEYWORD2
 };
@@ -72,7 +73,8 @@ typedef struct erow {
     int rsize;
     char chars[MAX_COLS];
     char render[NANI_TAB_SIZE * MAX_COLS];
-    char hl[MAX_COLS];
+    char hl[NANI_TAB_SIZE * MAX_COLS];
+    int hl_open_comment;
 } erow_t;
 
 typedef struct {
@@ -91,6 +93,8 @@ struct editor_syntax {
     char **filematch;
     char **keywords;
     char *singleline_comment_start;
+    char *multiline_comment_start;
+    char *multiline_comment_end;
     int flags;
 };
 
@@ -142,6 +146,8 @@ static struct editor_syntax HLDB[] = {
         NULL,
         NULL,
         NULL,
+        NULL,
+        NULL,
         0
     },
     {
@@ -149,6 +155,8 @@ static struct editor_syntax HLDB[] = {
         C_HL_extensions,
         C_HL_keywords,
         "//",
+        "/*",
+        "*/",
         HL_HIGHLIGHT_NUMBERS | HL_HIGHLIGHT_STRINGS
     },
     {
@@ -156,6 +164,8 @@ static struct editor_syntax HLDB[] = {
         PY_HL_extensions,
         PY_HL_keywords,
         "#",
+        "\"\"\"",
+        "\"\"\"",
         HL_HIGHLIGHT_NUMBERS | HL_HIGHLIGHT_STRINGS
     }
 };
@@ -242,6 +252,9 @@ void NANI_syntax_to_color(int hl) {
         case HL_KEYWORD2:
             abuf_append(&NANI.abuf, "\x1b[91;40M", 8);
             break;
+        case HL_MULTI_COMMENT:
+            abuf_append(&NANI.abuf, "\x1b[33;40M", 8);
+            break;
         default:
             abuf_append(&NANI.abuf, "\x1b[37;40M", 8);
             break;
@@ -277,19 +290,47 @@ void erow_update_syntax(erow_t *row) {
     char **keywords = NANI.syntax->keywords;
 
     char *scs = NANI.syntax->singleline_comment_start;
+    char *mcs = NANI.syntax->multiline_comment_start;
+    char *mce = NANI.syntax->multiline_comment_end;
     int scs_len = scs ? ece391_strlen((uint8_t *)scs) : 0;
+    int mcs_len = mcs ? ece391_strlen((uint8_t *)mcs) : 0;
+    int mce_len = mce ? ece391_strlen((uint8_t *)mce) : 0;
 
     int i = 0;
     int prev_is_seperator = 1;
     int in_hex = 0;
     int in_string = 0;
+    int row_idx = (row - NANI.row);
+    int in_comment = row_idx > 0 && NANI.row[row_idx - 1].hl_open_comment;
+
     while (i < row->rsize) {
         char c = row->render[i];
         // Highlight comments
-        if (scs_len && !in_string && i + scs_len <= row->rsize && scs != NULL) {
+        if (scs_len && !in_string && i + scs_len <= row->rsize && scs != NULL && !in_comment) {
             if (!ece391_strncmp((uint8_t *)&row->render[i], (uint8_t *)scs, scs_len)) {
                 ece391_memset((uint8_t *)&row->hl[i], HL_COMMENT, row->rsize - i);
                 break;
+            }
+        }
+
+        if (mcs_len && mce_len && !in_string && mcs != NULL && mce != NULL) {
+            if (in_comment) {
+                row->hl[i] = HL_MULTI_COMMENT;
+                if (!ece391_strncmp((uint8_t *)&row->render[i], (uint8_t *)mce, mce_len)) {
+                    ece391_memset(&row->hl[i], HL_MULTI_COMMENT, mce_len);
+                    i += mce_len;
+                    in_comment = 0;
+                    prev_is_seperator = 1;
+                    continue;
+                } else {
+                    i++;
+                    continue;
+                }
+            } else if (!ece391_strncmp((uint8_t *)&row->render[i], (uint8_t *)mcs, mcs_len)) {
+                ece391_memset(&row->hl[i], HL_MULTI_COMMENT, mcs_len);
+                i += mcs_len;
+                in_comment = 1;
+                continue;
             }
         }
 
@@ -365,6 +406,11 @@ void erow_update_syntax(erow_t *row) {
         prev_is_seperator = is_seperator(c);
         i++;
     }
+
+    int changed = (row->hl_open_comment != in_comment);
+    row->hl_open_comment = in_comment;
+    if (changed && row_idx + 1 < NANI.numrows)
+        erow_update_syntax(&NANI.row[row_idx + 1]);
 }
 
 void erow_update_render(erow_t *row) {
@@ -455,9 +501,11 @@ void NANI_insert_row(int at, char *s, int32_t len) {
     for (i = NANI.numrows; i > at; i--) {
         ece391_memcpy(&NANI.row[i], &NANI.row[i - 1], sizeof(erow_t));
     }
+
     NANI.row[at].size = len;
     ece391_memcpy(NANI.row[at].chars, s, len);
     NANI.row[at].rsize = 0;
+    NANI.row[at].hl_open_comment = 0;
     erow_update_render(&NANI.row[at]);
 
     NANI.numrows++;

@@ -21,7 +21,7 @@ void dynamic_allocation_init(void){
     DA_head_node.end_index = 0;
     DA_head_node.used_bytes_num = 0;
     DA_head_node.available_bytes_num = DYNAMIC_MEMORY_SIZE;
-    DA_head_node.ptr = DYNAMIC_MEMORY_START;
+    DA_head_node.ptr = (uint8_t*)DYNAMIC_MEMORY_START;
 
     memset(block_used, 0, PAGE_TBL_SIZE);
 }

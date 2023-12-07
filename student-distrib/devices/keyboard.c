@@ -31,6 +31,25 @@ DEFINE_DEVICE_HANDLER(keyboard) {
     int release = 0;
     send_eoi(KEYBOARD_IRQ);
     unsigned char scan_code = inb(KEYBOARD_PORT);
+    if (scan_code == 0xE0) {
+        // Extended key
+        scan_code = inb(KEYBOARD_PORT);
+        if (scan_code == 0x48) {
+            // Up arrow
+            vt_keyboard(KEY_ARROW_UP, 0);
+        } else if (scan_code == 0x4B) {
+            // Left arrow
+            vt_keyboard(KEY_ARROW_LEFT, 0);
+        } else if (scan_code == 0x4D) {
+            // Right arrow
+            vt_keyboard(KEY_ARROW_RIGHT, 0);
+        } else if (scan_code == 0x50) {
+            // Down arrow
+            vt_keyboard(KEY_ARROW_DOWN, 0);
+        }
+        // Other extended keys are discarded
+        return;
+    }
     if (scan_code >> 7) {
         release = 1;
         scan_code &= 0x7F;

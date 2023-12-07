@@ -376,11 +376,11 @@ static void process_default(keycode_t keycode, int release) {
     if (vt_state[foreground_vt].kbd.ctrl && keycode == KEY_G) { // Ctrl + G
         if (gui_activated) return;
         VIDEO = 0xE0000;
-        vt_state[foreground_vt].video_mem = VIDEO;
-        memcpy(VIDEO, (void *)0xB8000, VID_BUF_SIZE);
-        memcpy(VIDEO + FOUR_KB, (void *)0xB8000 + FOUR_KB, VID_BUF_SIZE);
-        memcpy(VIDEO + 2 * FOUR_KB, (void *)0xB8000 + 2 * FOUR_KB, VID_BUF_SIZE);
-        memcpy(VIDEO + 3 * FOUR_KB, (void *)0xB8000 + 3 * FOUR_KB, VID_BUF_SIZE);
+        vt_state[foreground_vt].video_mem = (char *)VIDEO;
+        memcpy((void *)VIDEO, (void *)0xB8000, VID_BUF_SIZE);
+        memcpy((void *)(VIDEO + FOUR_KB), (void *)(0xB8000 + FOUR_KB), VID_BUF_SIZE);
+        memcpy((void *)(VIDEO + 2 * FOUR_KB), (void *)(0xB8000 + 2 * FOUR_KB), VID_BUF_SIZE);
+        memcpy((void *)(VIDEO + 3 * FOUR_KB), (void *)(0xB8000 + 3 * FOUR_KB), VID_BUF_SIZE);
         program_bga(X_RESOLUTION, Y_RESOLUTION, BITS_PER_PIXEL);
         gui_set_up();
         gui_activated = 1;

@@ -14,10 +14,12 @@ static const uint8_t ps2_set1_keycode[128] = {
     KEY_DOT, KEY_SLASH, KEY_RIGHTSHIFT, KEY_KPASTERISK, KEY_LEFTALT,
     KEY_SPACE, KEY_CAPSLOCK, KEY_F1, KEY_F2, KEY_F3, KEY_F4, KEY_F5,
     KEY_F6, KEY_F7, KEY_F8, KEY_F9, KEY_F10, KEY_NUMLOCK, KEY_SCROLLLOCK,
-    KEY_KP7, KEY_KP8, KEY_KP9, KEY_KPMINUS, KEY_KP4, KEY_KP5, KEY_KP6,
-    KEY_KPPLUS, KEY_KP1, KEY_KP2, KEY_KP3, KEY_KP0, KEY_KPDOT,
+    KEY_KP7, KEY_ARROW_UP, KEY_KP9, KEY_KPMINUS, KEY_ARROW_LEFT, KEY_KP5, KEY_ARROW_RIGHT,
+    KEY_KPPLUS, KEY_KP1, KEY_ARROW_DOWN, KEY_KP3, KEY_KP0, KEY_KPDOT,
     // Remaining keys are not used but will be mapped to KEY_RESERVED (0) anyway
 };
+
+static const int extended_key;
 
 /* keyboard_intr_handler
  *   DESCRIPTION: keyboard interrupt handler
@@ -31,25 +33,6 @@ DEFINE_DEVICE_HANDLER(keyboard) {
     int release = 0;
     send_eoi(KEYBOARD_IRQ);
     unsigned char scan_code = inb(KEYBOARD_PORT);
-    if (scan_code == 0xE0) {
-        // Extended key
-        scan_code = inb(KEYBOARD_PORT);
-        if (scan_code == 0x48) {
-            // Up arrow
-            vt_keyboard(KEY_ARROW_UP, 0);
-        } else if (scan_code == 0x4B) {
-            // Left arrow
-            vt_keyboard(KEY_ARROW_LEFT, 0);
-        } else if (scan_code == 0x4D) {
-            // Right arrow
-            vt_keyboard(KEY_ARROW_RIGHT, 0);
-        } else if (scan_code == 0x50) {
-            // Down arrow
-            vt_keyboard(KEY_ARROW_DOWN, 0);
-        }
-        // Other extended keys are discarded
-        return;
-    }
     if (scan_code >> 7) {
         release = 1;
         scan_code &= 0x7F;

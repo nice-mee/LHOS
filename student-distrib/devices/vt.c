@@ -490,12 +490,12 @@ void vt_keyboard(keycode_t keycode, int release) {
                 command_completion();
             }
             break;
-        case KEY_KP8:
+        case KEY_ARROW_UP:
             if (!release){
                 command_history(1);
             }
             break;
-        case KEY_KP2:
+        case KEY_ARROW_DOWN:
             if (!release){
                 command_history(2);
             }

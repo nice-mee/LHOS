@@ -34,13 +34,11 @@
 #define SIG_MASK 1
 #define SIG_UNMASK 0
 
-/* define general signals handler pointer */
-typedef void* (*SIG_Handler_Ptr)(void);
 /* define signal structure */
 typedef struct signal{
     int32_t sa_activate;            // 0 as unactivated, 1 as activated
     int32_t sa_masked;              // 0 as unmasked, 1 as masked
-    SIG_Handler_Ptr sa_handler;
+    void* sa_handler;
 } signal_t;
 
 /* define Hardware context structure */
@@ -58,7 +56,6 @@ typedef struct HW_Context{
     uint16_t padding2;
     uint16_t fs;
     uint16_t padding3;
-    uint32_t irq_ecep_num;
     uint32_t error_Code;
     uint32_t ret_addr;
     uint16_t cs;

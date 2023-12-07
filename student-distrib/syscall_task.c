@@ -217,6 +217,7 @@ int32_t __syscall_execute(const uint8_t* command) {
     for(i = 0; i < SIG_NUM; i++){
         if(i <= 2) cur_pcb->signals[i].sa_handler = __signal_kill_task;
         else    cur_pcb->signals[i].sa_handler = __signal_ignore;
+        cur_pcb->signals[i].sa_activate = SIG_UNACTIVATED;
         cur_pcb->signals[i].sa_masked = SIG_MASK;
     }
 
@@ -435,7 +436,8 @@ int32_t __syscall_set_handler(int32_t signum, void* handler_address){
 int32_t __syscall_sigreturn(void){
     pcb_t* cur_pcb = get_current_pcb();
     int32_t i;
-    uint32_t ebp0 asm("ebp");
+    uint32_t ebp0;
+    asm ("movl %%ebp, %0" : "=r" (ebp0));
     
     /* copy the handware context */
     HW_Context_t* newcontext = (HW_Context_t*)(ebp0 + 20);                      // OFFSET extremely uncertain!!! Need Fixed

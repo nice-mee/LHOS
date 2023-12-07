@@ -11,7 +11,6 @@ typedef struct {
     int32_t proc_exist;
     int32_t proc_freq;
     volatile int32_t proc_count;
-    int32_t rtc_interrupt_counter;      // used to record the times of rtc interruption has occurd, for SIG_ALARM
 } proc_freqcount_pair;
 
 static proc_freqcount_pair RTC_proc_list[MAX_PROC_NUM];
@@ -153,11 +152,6 @@ int32_t RTC_read(int32_t fd, void* buf, int32_t nbytes) {
     cli();
     if(RTC_proc_list[proc_id].proc_freq)
         RTC_proc_list[proc_id].proc_count = RTC_BASE_FREQ / RTC_proc_list[proc_id].proc_freq;
-    RTC_proc_list[proc_id].rtc_interrupt_counter++;      
-    if(RTC_proc_list[proc_id].rtc_interrupt_counter / RTC_proc_list[proc_id].proc_freq > 10){       // if it has passed 10 seconds, send SIGNUM_ALARM signal
-        RTC_proc_list[proc_id].rtc_interrupt_counter = 0;
-        send_signal(SIGNUM_ALARM);
-    }
     sti();
     return 0;
 }

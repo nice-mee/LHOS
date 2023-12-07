@@ -40,7 +40,7 @@ void __signal_kill_task(void){
 void send_signal(int32_t signum){
     pcb_t* cur_pcb = get_current_pcb();
     /* if signum is invalid or get_current_pcb fails, send fails */
-    if(signum < 0 || signum > 4 || cur_pcb == NULL) return -1;
+    if(signum < 0 || signum > 4 || cur_pcb == NULL) return;
 
     cli();
     /* if the signal is INTERRUPT, do we need to change the cur_pcb ?????????????? I saw CZY does so */
@@ -58,14 +58,16 @@ void handle_signal(void){
     int32_t i, signum = -1;
     pcb_t* cur_pcb = get_current_pcb();
     void* signal_handler;
-    uint32_t ebp0 asm("ebp");
+    uint32_t ebp0;
     uint32_t user_esp;
     HW_Context_t* context;
     uint32_t execute_sigreturn_size = EXECUTE_SIGRETURN_END - EXECUTE_SIGRETURN;
     uint32_t ret_addr;
+    asm ("movl %%ebp, %0" : "=r" (ebp0));
     /* checking pending signals */
     for(i = 0; i < SIG_NUM; i++){
         if(cur_pcb->signals[i].sa_activate == SIG_ACTIVATED){
+            cur_pcb->signals[i].sa_activate = SIG_UNACTIVATED;
             signum = i;
             signal_handler = cur_pcb->signals[i].sa_handler;
             break;
@@ -79,10 +81,17 @@ void handle_signal(void){
         if(i != signum) cur_pcb->signals[i].sa_masked = SIG_MASK;
     }
 
+    /* if handler is in kernel, directly call it and return */
+    if(signal_handler == __signal_ignore || signal_handler == __signal_kill_task){
+        ((void(*)())signal_handler)();
+        return;
+    }
+
     /* then set up the signal handler's stack frame */
     /* first push the execute sigreturn */
     context = (HW_Context_t*)(ebp0 + 8);
     user_esp = context->esp;
+    if(user_esp < USER_STACK_START) return;
     ret_addr = user_esp - execute_sigreturn_size;               // return to the execute sigreturn
     memcpy((void*)(ret_addr), EXECUTE_SIGRETURN, execute_sigreturn_size);
     /* then push the hardware context */
@@ -92,6 +101,7 @@ void handle_signal(void){
     memcpy((void*)(ret_addr - sizeof(HW_Context_t) - 8), &ret_addr, 4);
 
     /* update the hardware context for iret */
+    user_esp = ret_addr - sizeof(HW_Context_t) - 8;
     context->esp = user_esp;
     context->ret_addr = (uint32_t)signal_handler;
 

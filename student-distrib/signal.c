@@ -43,7 +43,6 @@ void send_signal(int32_t signum){
     if(signum < 0 || signum > 4 || cur_pcb == NULL) return;
 
     cli();
-    /* if the signal is INTERRUPT, do we need to change the cur_pcb ?????????????? I saw CZY does so */
     cur_pcb->signals[signum].sa_activate = SIG_ACTIVATED;
     sti();
     return;
@@ -55,7 +54,6 @@ void send_signal_by_pid(int32_t signum, int32_t pid){
     if(signum < 0 || signum > 4 || cur_pcb == NULL) return;
 
     cli();
-    /* if the signal is INTERRUPT, do we need to change the cur_pcb ?????????????? I saw CZY does so */
     cur_pcb->signals[signum].sa_activate = SIG_ACTIVATED;
     sti();
     return;

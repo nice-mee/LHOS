@@ -1,21 +1,5 @@
-#ifndef _KEYBOARD_H
-#define _KEYBOARD_H
-
-#include "device_utils.h"
-#include "../types.h"
-
-#define KEYBOARD_IRQ 1
-#define KEYBOARD_PORT 0x60
-
-typedef struct {
-    int shift;
-    int caps;
-    int ctrl;
-    int alt;
-} keyboard_state_t;
-
-/* Keycodes */
-typedef uint8_t keycode_t;
+#ifndef _ECE391VT_H
+#define _ECE391VT_H
 
 enum keycodes_ {
     KEY_RESERVED = 0,
@@ -37,7 +21,4 @@ enum keycodes_ {
     KEY_ARROW_UP, KEY_ARROW_LEFT, KEY_ARROW_DOWN, KEY_ARROW_RIGHT,
 };
 
-DECLARE_DEVICE_HANDLER(keyboard);
-DECLARE_DEVICE_INIT(keyboard);
-
-#endif /* _KEYBOARD_H */
+#endif

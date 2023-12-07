@@ -8,6 +8,7 @@
 #include "types.h"
 #include "devices/vt.h"
 
+int atoi(char a);
 int32_t printf(int8_t *format, ...);
 void putc(uint8_t c);
 int32_t puts(int8_t *s);

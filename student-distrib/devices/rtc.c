@@ -224,6 +224,7 @@ int32_t RTC_read(int32_t fd, void* buf, int32_t nbytes) {
     cli();
     if(RTC_proc_list[proc_id].proc_freq)
         RTC_proc_list[proc_id].proc_count = max_freq / RTC_proc_list[proc_id].proc_freq;
+        RTC_proc_list[proc_id].proc_count = max_freq / RTC_proc_list[proc_id].proc_freq;
     sti();
     return 0;
 }
@@ -254,6 +255,11 @@ int32_t RTC_write(int32_t fd, const void* buf, int32_t nbytes) {
     int32_t proc_id = get_current_pid();
     cli();
     RTC_proc_list[proc_id].proc_freq = freq;
+    if(freq > max_freq) {
+        max_freq = freq;
+        set_RTC_freq();
+    }
+    RTC_proc_list[proc_id].proc_count = max_freq / freq;
     if(freq > max_freq) {
         max_freq = freq;
         set_RTC_freq();

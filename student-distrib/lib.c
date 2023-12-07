@@ -12,6 +12,10 @@
 // static int screen_y;
 static char* video_mem = (char *)VIDEO;
 
+int atoi(char a) {
+    return a - '0';
+}
+
 /* void clear(void);
  * Inputs: void
  * Return Value: none

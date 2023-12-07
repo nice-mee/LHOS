@@ -1,8 +1,8 @@
-CFLAGS += -Wall -nostdlib -ffreestanding
-LDFLAGS += -nostdlib -ffreestanding
+CFLAGS += -g -Wall -nostdlib -ffreestanding
+LDFLAGS += -g -nostdlib -ffreestanding
 CC = gcc
 
-ALL: cat grep hello ls pingpong counter shell sigtest testprint syserr ps date donut
+ALL: cat grep hello ls pingpong counter shell sigtest testprint syserr ps date donut malloc nani
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c -o $@ $<

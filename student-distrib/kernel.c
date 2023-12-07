@@ -16,6 +16,7 @@
 #include "devices/pit.h"
 #include "devices/vt.h"
 #include "syscall_task.h"
+#include "dynamic_alloc.h"
 #include "GUI/gui.h"
 #include "GUI/bga.h"
 
@@ -165,6 +166,7 @@ void entry(unsigned long magic, unsigned long addr) {
 
     /* Initialize paging */
     paging_init();
+    dynamic_allocation_init();
 
     program_bga(X_RESOLUTION, Y_RESOLUTION, BITS_PER_PIXEL);
     gui_set_up();

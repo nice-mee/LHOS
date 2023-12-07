@@ -2,6 +2,7 @@
 #include "paging.h"
 #include "devices/vt.h"
 #include "x86_desc.h"
+#include "dynamic_alloc.h"
 
 static void set_user_PDE(uint32_t pid)
 {
@@ -406,4 +407,36 @@ int32_t __syscall_set_handler(int32_t signum, void* handler_address){
 
 int32_t __syscall_sigreturn(void){
     return -1;
+}
+
+int32_t __syscall_ioctl(int32_t fd, int32_t flag) {
+    if (fd == 1) {
+        return vt_ioctl(flag);
+    }
+    return 0;
+}
+
+/* __syscall_malloc - dynamic allocate one memory area with input size
+ * Inputs: size - the size of the dynamic allocate area
+ * Outputs: None
+ * Return: the pointer pointing to the target area if successfully
+ *         NULL if allocate fails
+ */
+void* __syscall_malloc(int32_t size){
+    int32_t* ptr = malloc(size);
+    // printf("%d\n", (int32_t)ptr);
+    // show_memory_usage();
+    return ptr;
+}
+
+/* __syscall_free - free the given area specified by the input ptr
+ * Inputs: ptr - the size of the dynamic allocate area
+ * Outputs: None
+ * Return: 0 if free successfully, -1 otherwise
+ */
+int32_t __syscall_free(void* ptr){
+    printf("%d\n", (int32_t)ptr);
+    int32_t ret = free(ptr);
+    show_memory_usage();
+    return ret;
 }

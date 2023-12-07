@@ -14,6 +14,7 @@
 #define VID_MEM_ADDR 0xB8000
 #define KERNEL_ADDR 0x400000
 #define VID_MEM_POS (VID_MEM_ADDR >> 12)
+#define NANI_STATIC_BUF_ADDR 0x7000000 // 112 MB
 
 
 /*
@@ -53,6 +54,7 @@ typedef struct page_table_entry {
 PDE_t page_directory[DIR_TBL_SIZE] __attribute__((aligned(PAGE_SIZE)));
 PTE_t page_table[PAGE_TBL_SIZE] __attribute__((aligned(PAGE_SIZE)));
 PTE_t vidmap_table[PAGE_TBL_SIZE] __attribute__((aligned(PAGE_SIZE)));
+PTE_t dynamic_tables[PAGE_TBL_SIZE] __attribute__((aligned(PAGE_SIZE)));
 
 void paging_init();
 

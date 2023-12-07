@@ -15,6 +15,7 @@ name: ;\
     pushl %ecx ;\
     pushl %ebx ;\
     call __##name ;\
+    call handle_signal ;\
     popl %ebx ;\
     popl %ecx ;\
     popl %edx ;\
@@ -42,6 +43,7 @@ name: ;\
     pushl %ecx ;\
     pushl %ebx ;\
     call __##name ;\
+    call handle_signal ;\
     popl %ebx ;\
     popl %ecx ;\
     popl %edx ;\
@@ -69,6 +71,7 @@ name: ;\
     pushl %ecx ;\
     pushl %ebx ;\
     call __##name ;\
+    call handle_signal ;\
     popl %ebx ;\
     popl %ecx ;\
     popl %edx ;\

@@ -3,6 +3,7 @@
 #include "../i8259.h"
 #include "../filesys.h"
 #include "../pcb.h"
+#include "../signal.h"
 
 volatile int32_t max_freq = 2;
 volatile int32_t min_rate = 1;

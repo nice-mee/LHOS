@@ -2,6 +2,7 @@
  */
 
 #include "vt.h"
+#include "../signal.h"
 
 #define VIDEO       0xB8000
 #define FOUR_KB     0x1000
@@ -382,6 +383,7 @@ static void process_default(keycode_t keycode, int release) {
 
     if (vt_state[foreground_vt].kbd.ctrl && keycode == KEY_C) { // Ctrl + C
         vt_state[foreground_vt].halt_pending = 1;
+        send_signal(SIGNUM_INTERRUPT);
         return;
     }
 

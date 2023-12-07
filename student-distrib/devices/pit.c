@@ -2,6 +2,9 @@
 #include "../i8259.h"
 #include "../lib.h"
 #include "../scheduler.h"
+#include "../signal.h"
+
+int32_t alarm_signal_counter = 0;
 
 /* PIT_init - Initialization of Programmable Interval Timer (PIT)
  * 
@@ -27,6 +30,11 @@ void pit_init(void) {
  * Side Effects: Call the scheduler
  */
 void __intr_PIT_handler(void) {
+    alarm_signal_counter++;
+    if(alarm_signal_counter >= 1000){
+        alarm_signal_counter = 0;
+        send_signal(SIGNUM_ALARM);
+    }
     send_eoi(PIT_IRQ);
     scheduler();
 }

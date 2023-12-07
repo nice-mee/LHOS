@@ -2,6 +2,7 @@
 #include "paging.h"
 #include "devices/vt.h"
 #include "x86_desc.h"
+#include "signal.h"
 #include "dynamic_alloc.h"
 
 static void set_user_PDE(uint32_t pid)
@@ -171,6 +172,7 @@ static pcb_t* create_pcb(uint32_t pid, pcb_t *parent_pcb)
  * Side Effects: None
  */
 int32_t __syscall_execute(const uint8_t* command) {
+    int32_t i;
     // Parse args
     if (command == NULL) {
         return INVALID_CMD;
@@ -211,6 +213,14 @@ int32_t __syscall_execute(const uint8_t* command) {
     pcb_t* cur_pcb = create_pcb(pid, parent_pcb);
     /* Write arguments in pcb */
     memcpy(cur_pcb->args, args, ARG_LEN + 1);
+
+    // initialize pcb's signal structure
+    for(i = 0; i < SIG_NUM; i++){
+        if(i <= 2) cur_pcb->signals[i].sa_handler = __signal_kill_task;
+        else    cur_pcb->signals[i].sa_handler = __signal_ignore;
+        cur_pcb->signals[i].sa_activate = SIG_UNACTIVATED;
+        cur_pcb->signals[i].sa_masked = SIG_MASK;
+    }
 
     // set TSS
     tss.ss0 = KERNEL_DS;
@@ -401,12 +411,45 @@ int32_t __syscall_vidmap(uint8_t** screen_start){
     return 0;
 }
 
+/* __syscall_set_handler - changes the default action taken when the corresponding signal is reveived
+ * Inputs: signum - specifies which signal's handler to change
+ *         handler_address - points to a user-level function to be run when that signal is reveived
+ * Outputs: None
+ * Return:  0 if the handler is set successfully
+ *          -1 if handler setting fails
+ * Side Effects: This call may change the Signal_Actoin_Table
+ */
 int32_t __syscall_set_handler(int32_t signum, void* handler_address){
-    return -1;
+    pcb_t* cur_pcb = get_current_pcb();
+    /* if signum invalid or handler_address is NULL or get_current_pcb fails, set fails */
+    if(signum < 0 || signum > 4 || handler_address == NULL || cur_pcb == NULL) return -1;
+
+    /* changes the default action taken for the current pcb with input signum signal */
+    cur_pcb->signals[signum].sa_handler = handler_address;
+    return 0;
 }
 
+/* __syscall_sigreturn - copy the hardware context that was on the user-level stack back onto the processor
+ * Inputs: None
+ * Outputs: None
+ * Return:  0 as asume always successful
+ */
 int32_t __syscall_sigreturn(void){
-    return -1;
+    pcb_t* cur_pcb = get_current_pcb();
+    int32_t i;
+    uint32_t ebp0;
+    asm ("movl %%ebp, %0" : "=r" (ebp0));
+    
+    /* copy the handware context */
+    HW_Context_t* newcontext = (HW_Context_t*)(ebp0 + 8);                      // OFFSET extremely uncertain!!! Need Fixed
+    uint32_t user_esp = newcontext->esp;
+    HW_Context_t* oldcontext = (HW_Context_t*)(user_esp + 4);                   // OFFSET extremely uncertain!!! Need Fixed
+    memcpy(newcontext, oldcontext, sizeof(HW_Context_t));
+    /* unmask all signals */
+    for(i = 0; i < SIG_NUM; i++){
+        cur_pcb->signals[i].sa_masked = SIG_UNMASK;
+    }
+    return newcontext->eax;
 }
 
 int32_t __syscall_ioctl(int32_t fd, int32_t flag) {

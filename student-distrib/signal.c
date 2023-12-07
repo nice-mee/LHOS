@@ -26,7 +26,7 @@ void __signal_ignore(void){
  * Return:  0 as asume always success
  */
 void __signal_kill_task(void){
-    clear();
+    // clear();
     __syscall_halt(0);
     return;
 }
@@ -91,7 +91,7 @@ void handle_signal(void){
     /* first push the execute sigreturn */
     context = (HW_Context_t*)(ebp0 + 8);
     user_esp = context->esp;
-    if(user_esp < USER_STACK_START) return;
+    if(user_esp < _128_MB) return;
     ret_addr = user_esp - execute_sigreturn_size;               // return to the execute sigreturn
     memcpy((void*)(ret_addr), EXECUTE_SIGRETURN, execute_sigreturn_size);
     /* then push the hardware context */
@@ -104,9 +104,6 @@ void handle_signal(void){
     user_esp = ret_addr - sizeof(HW_Context_t) - 8;
     context->esp = user_esp;
     context->ret_addr = (uint32_t)signal_handler;
-
-    /* finally execute the signal handler */
-    ((void(*)())signal_handler)();
 
     return;
 }

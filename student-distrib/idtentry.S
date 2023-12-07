@@ -54,6 +54,7 @@ name: ;\
     popl %ds ;\
     popl %es ;\
     popl %fs ;\
+    addl $4, %esp ;\
     iret
 
 #define GENERATE_INTR_ASM_WRAPPER(name) ;\

@@ -138,13 +138,12 @@ void __intr_RTC_handler(void) {
             RTC_proc_list[pid].proc_count --;
     }
     get_date();
-    cli();
-    if(--GUI_counter == 0) {
-        draw_terminal();
+    fill_terminal();
+    /*if(--GUI_counter == 0) {
         fill_terminal();
         GUI_counter = (max_freq / 2);
     }
-    sti();
+    sti();*/
     outb(RTC_C &0x0F, RTC_PORT); // select register C
     inb(RTC_CMOS_PORT);		    // just throw away contents
 

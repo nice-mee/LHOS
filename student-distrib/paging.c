@@ -4,6 +4,7 @@
 
 #include "paging.h"
 #include "lib.h"
+#include "GUI/bga.h"
 
 void paging_init(){
     
@@ -72,6 +73,12 @@ void paging_init(){
     // Initialize the page directory for 4kB page tables.
     page_directory[0].P    = 1;
     page_directory[0].ADDR = (uint32_t)page_table >> 12;
+
+    // Set a page for GUI
+    uint32_t vbe_index = QEMU_BASE_ADDR >> 22;
+    page_directory[vbe_index].P = 1;
+    page_directory[vbe_index].PS = 1;
+    page_directory[vbe_index].ADDR = QEMU_BASE_ADDR >> 12;
 
     // Code for manipulating control registers to enable paging.
     asm volatile(

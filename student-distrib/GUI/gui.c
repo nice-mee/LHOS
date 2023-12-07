@@ -76,7 +76,7 @@ void draw_time() {
     draw_string(SEC_START_X, SEC_START_Y , time_str, 0xFFFFFFFF);
     /* show date */
     char time_str1[12];
-    time_str1[0] = '1';
+    time_str1[0] = '0' + day % 10;
     time_str1[1] = ' ';
     time_str1[2] = 'D';
     time_str1[3] = 'E';
@@ -116,6 +116,26 @@ void vt_draw_string(int x, int y, int8_t* str, uint32_t color) {
         }
     }
 }
+static char buffer_str[25][81];
+
+int my_strcmp(const char *str1, const char *str2) {
+    while (*str1 && (*str1 == *str2)) {
+        str1++;
+        str2++;
+    }
+    return *(const unsigned char*)str1 - *(const unsigned char*)str2;
+}
+
+char* my_strcpy(char *dest, const char *src) {
+    char *saved = dest;
+    while (*src) {
+        *dest = *src;
+        dest++;
+        src++;
+    }
+    *dest = 0;
+    return saved;
+}
 
 void fill_terminal(void) {
     int i, j;
@@ -123,12 +143,31 @@ void fill_terminal(void) {
     for (i = 0; i < VT_ROW; ++i) {
         char cur_str[VT_COL + 1] = {0};
         for (j = 0; j < VT_COL; ++j) {
-            if (*(vidmem + ((j + i * VT_COL) << 1)) != '\0') {
-                cur_str[j] = *(vidmem + ((j + i * VT_COL)<<1));
+            if (*(vidmem + (j + i * VT_COL) * 2) != '\0') {
+                cur_str[j] = *(vidmem + (j + i * VT_COL) * 2);
             }
         }
-        vt_draw_string(VT_START_X, VT_START_Y + 16 * i, cur_str, 0XFFFFFFFF);
+        if(my_strcmp(buffer_str[i], cur_str) == 0) {
+            continue;
+        }
+        else {
+            draw_terminal_line(VT_START_Y + 16 * i + 11);
+            vt_draw_string(VT_START_X + 15, VT_START_Y + 16 * i + 11, cur_str, 0XFFFFFFFF);
+            my_strcpy(buffer_str[i], cur_str);
+        }
     }
+}
+
+void draw_terminal_line(int row) {
+    int j, index;
+    for (j = VT_START_X; j < VT_WIDTH + VT_START_X; ++j) {
+            index = (j - VT_START_X) + (row - VT_START_Y) * VT_WIDTH;
+            uint32_t pixel_color = 
+             (((((vt_image[index] & RED_MASK) >> RED_OFF) << 3) & LOW_8_BITS) << 16)
+            |(((((vt_image[index] & GRE_MASK) >> GRE_OFF) << 2) & LOW_8_BITS) << 8)
+            |(((( vt_image[index] & BLU_MASK) << BLU_OFF) & LOW_8_BITS));
+            *(uint32_t *)(qemu_memory + row * X_RESOLUTION + j) = pixel_color;
+        }
 }
 
 void draw_terminal() {
@@ -148,5 +187,5 @@ void draw_terminal() {
 
 void gui_set_up() {
     draw_background();
-    //draw_terminal();
+    draw_terminal();
 }

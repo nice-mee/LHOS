@@ -55,6 +55,9 @@ typedef struct {
     int input_buf_ptr;
     volatile int enter_pressed;
     char user_buf[INPUT_BUF_SIZE]; // Buffer for storing user input after enter is pressed
+    char buf_history[NUM_HIST][INPUT_BUF_SIZE];
+    int cur_cmd_idx;
+    int cur_cmd_cnt;
     int nbytes_read;
     uint32_t active_pid; // default as -1
     uint32_t esp;
@@ -88,6 +91,8 @@ void vt_init(void) {
         vt_state[i].enter_pressed = 0;
         vt_state[i].active_pid = -1;
         vt_state[i].halt_pending = 0;
+        vt_state[i].cur_cmd_idx = 0;
+        vt_state[i].cur_cmd_cnt = 0;
     }
     vt_state[0].video_mem = (char*)VIDEO;
 }
@@ -342,6 +347,21 @@ void vt_keyboard(keycode_t keycode, int release) {
             break;
         case KEY_ENTER:
             if (!release) {
+                if(vt_state[foreground_vt].cur_cmd_cnt < NUM_HIST){
+                    memset(vt_state[foreground_vt].buf_history[vt_state[foreground_vt].cur_cmd_cnt], '\0', sizeof(vt_state[foreground_vt].buf_history[vt_state[foreground_vt].cur_cmd_cnt]));
+                    memcpy(vt_state[foreground_vt].buf_history[vt_state[foreground_vt].cur_cmd_cnt], vt_state[foreground_vt].input_buf, vt_state[foreground_vt].input_buf_ptr * sizeof(char));
+                    vt_state[foreground_vt].cur_cmd_cnt++;
+                }
+                else{
+                    int i;
+                    for(i = 0; i < NUM_HIST - 1; i++){
+                        memset(vt_state[foreground_vt].buf_history[i], '\0', sizeof(vt_state[foreground_vt].buf_history[i]));
+                        strcpy(vt_state[foreground_vt].buf_history[i], vt_state[foreground_vt].buf_history[i + 1]);
+                    }
+                    memset(vt_state[foreground_vt].buf_history[NUM_HIST - 1], '\0', sizeof(vt_state[foreground_vt].buf_history[NUM_HIST - 1]));    
+                    memcpy(vt_state[foreground_vt].buf_history[NUM_HIST - 1], vt_state[foreground_vt].input_buf, vt_state[foreground_vt].input_buf_ptr * sizeof(char));
+                }
+                vt_state[foreground_vt].cur_cmd_idx = vt_state[foreground_vt].cur_cmd_cnt;
                 vt_putc('\n', 1);
                 vt_state[foreground_vt].input_buf[vt_state[foreground_vt].input_buf_ptr] = '\n';
                 vt_state[foreground_vt].input_buf_ptr++;
@@ -368,7 +388,19 @@ void vt_keyboard(keycode_t keycode, int release) {
             }
             break;
         case KEY_TAB:
-            command_completion();
+            if (!release){
+                command_completion();
+            }
+            break;
+        case KEY_KP8:
+            if (!release){
+                command_history(1);
+            }
+            break;
+        case KEY_KP2:
+            if (!release){
+                command_history(2);
+            }
             break;
         default:
             process_default(keycode, release);
@@ -511,4 +543,43 @@ void command_completion(){
         }
     }
     return;
+}
+
+void command_history(int type){
+    if(type == 1){
+        if(vt_state[foreground_vt].cur_cmd_cnt == 0)
+            return;
+        if(vt_state[foreground_vt].cur_cmd_idx == 0)
+            return;
+        while(vt_state[foreground_vt].input_buf_ptr > 0){
+            vt_state[foreground_vt].input_buf_ptr--;
+            vt_state[foreground_vt].input_buf[vt_state[foreground_vt].input_buf_ptr] = '\0';
+            vt_putc('\b', 1);
+        }
+        vt_state[foreground_vt].cur_cmd_idx--;
+        vt_state[foreground_vt].input_buf_ptr = strlen(vt_state[foreground_vt].buf_history[vt_state[foreground_vt].cur_cmd_idx]);
+        memset(vt_state[foreground_vt].input_buf, '\0', sizeof(vt_state[foreground_vt].input_buf));    
+        strcpy(vt_state[foreground_vt].input_buf, vt_state[foreground_vt].buf_history[vt_state[foreground_vt].cur_cmd_idx]);
+        int j;
+        for(j = 0; j < strlen(vt_state[foreground_vt].buf_history[vt_state[foreground_vt].cur_cmd_idx]); j++)
+            vt_putc(vt_state[foreground_vt].buf_history[vt_state[foreground_vt].cur_cmd_idx][j], 1);
+    }
+    else if(type == 2){
+        if(vt_state[foreground_vt].cur_cmd_cnt == 0)
+            return;
+        if(vt_state[foreground_vt].cur_cmd_idx >= vt_state[foreground_vt].cur_cmd_cnt - 1)
+            return;
+        while(vt_state[foreground_vt].input_buf_ptr > 0){
+            vt_state[foreground_vt].input_buf_ptr--;
+            vt_state[foreground_vt].input_buf[vt_state[foreground_vt].input_buf_ptr] = '\0';
+            vt_putc('\b', 1);
+        }
+        vt_state[foreground_vt].cur_cmd_idx++;
+        vt_state[foreground_vt].input_buf_ptr = strlen(vt_state[foreground_vt].buf_history[vt_state[foreground_vt].cur_cmd_idx]);
+        memset(vt_state[foreground_vt].input_buf, '\0', sizeof(vt_state[foreground_vt].input_buf));    
+        strcpy(vt_state[foreground_vt].input_buf, vt_state[foreground_vt].buf_history[vt_state[foreground_vt].cur_cmd_idx]);
+        int j;
+        for(j = 0; j < strlen(vt_state[foreground_vt].buf_history[vt_state[foreground_vt].cur_cmd_idx]); j++)
+            vt_putc(vt_state[foreground_vt].buf_history[vt_state[foreground_vt].cur_cmd_idx][j], 1);
+    }
 }

@@ -17,6 +17,7 @@
 .vscode/
 .idea/
 *.code-workspace
+.DS_Store
 
 # Makefile generated files
 Makefile.dep

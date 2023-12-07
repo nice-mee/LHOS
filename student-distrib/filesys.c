@@ -13,6 +13,8 @@ boot_block_t* boot_block;
 dentry_t* dentries;
 inode_t* inodes;
 data_block_t* datablocks;
+int num_db;
+int occupy_db[64];
 
 operation_table_t file_operation_table = {
     .open_operation = fopen,
@@ -175,6 +177,57 @@ int32_t read_data(uint32_t inode, uint32_t offset, uint8_t* buf, uint32_t length
     }
 
     return length;
+}
+
+
+int32_t write_data(uint32_t inode, const uint8_t* buf, uint32_t length){
+    uint32_t i;
+    uint32_t j;
+    uint32_t byte_written = 0;
+    data_block_t* cur_datablock;
+    inode_t* cur_inode = &(inodes[inode]);
+    /* fail if inode out of boundary */
+    if(inode >= boot_block->inodes_num) return -1;
+    /* fail if buf is invalid */
+    if(buf == NULL) return -1;
+
+    /* free up all the current occupied data blocks */
+    int32_t num_datablock = (cur_inode->length % BLOCK_SIZE == 0) ? cur_inode->length / BLOCK_SIZE : (cur_inode->length / BLOCK_SIZE + 1);
+    for (i = 0; i < num_datablock; i++) {
+        occupy_db[cur_inode->data_block_index[i]] = 0;
+    }
+    memset(cur_inode->data_block_index, 0, sizeof(uint32_t) * num_datablock);
+    cur_inode->length = 0;
+
+    /* allocate new data blocks */
+    num_datablock = (length % BLOCK_SIZE == 0) ? length / BLOCK_SIZE : (length / BLOCK_SIZE + 1);
+    for (i = 0; i < num_datablock; i++) {
+        for (j = 0; j < 64; j++) {
+            if (occupy_db[j] == 0) {
+                occupy_db[j] = 1;
+                cur_inode->data_block_index[i] = j;
+                break;
+            }
+        }
+        if (j == 64) {
+            return -1;
+        }
+    }
+
+    while (byte_written < length) {
+        cur_datablock = &(datablocks[cur_inode->data_block_index[byte_written / BLOCK_SIZE]]);
+        if (length - byte_written < BLOCK_SIZE) {
+            memcpy(cur_datablock->data, buf + byte_written, length - byte_written);
+            byte_written += length - byte_written;
+        } else {
+            memcpy(cur_datablock->data, buf + byte_written, BLOCK_SIZE);
+            byte_written += BLOCK_SIZE;
+        }
+    }
+
+    cur_inode->length = byte_written;
+
+    return byte_written;
 }
 
 
@@ -392,5 +445,16 @@ int32_t fread(int32_t fd, void* buf, int32_t nbytes){
  * Side Effects: None
  */
 int32_t fwrite(int32_t fd, const void* buf, int32_t nbytes){
+    uint32_t bytes_written;
+    pcb_t* cur_pcb = get_current_pcb();
+    file_descriptor_t* cur_fd;
+    /* if buf is null or fd is invalid or nbytes is invalid, read fails */
+    if(buf == NULL || fd < 0 || fd >= NUM_FILES || nbytes < 0) return -1;    
+    cur_fd = &(cur_pcb->fd_array[fd]);
+    /* read the file starting at 0 
+       this is mandatory as text editor requires to overwrite the entire file */
+    bytes_written = write_data(cur_fd->inode_index, buf, nbytes);
+    if(bytes_written == nbytes)
+        return bytes_written;
     return -1;
 }

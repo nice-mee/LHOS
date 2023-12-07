@@ -53,19 +53,26 @@ typedef struct {
     char* video_mem;
     keyboard_state_t kbd;
     char input_buf[INPUT_BUF_SIZE]; // Temporary buffer for storing user input
-    int input_buf_ptr;
+    volatile int input_buf_ptr;
     volatile int enter_pressed;
     char user_buf[INPUT_BUF_SIZE]; // Buffer for storing user input after enter is pressed
+    char buf_history[NUM_HIST][INPUT_BUF_SIZE];
+    int cur_cmd_idx;
+    int cur_cmd_cnt;
     int nbytes_read;
     uint32_t active_pid; // default as -1
     uint32_t esp;
     uint32_t ebp;
     uint32_t halt_pending;
+    int32_t raw;
+    int8_t attrib;
 } vt_state_t;
 
 static vt_state_t vt_state[NUM_TERMS];
 static int cur_vt = 0;
 static int foreground_vt = 0;
+
+static void redraw_cursor(int term_idx);
 
 /* vt_init
  *   DESCRIPTION: Initialize virtual terminal.
@@ -89,6 +96,10 @@ void vt_init(void) {
         vt_state[i].enter_pressed = 0;
         vt_state[i].active_pid = -1;
         vt_state[i].halt_pending = 0;
+        vt_state[i].raw = 0;
+        vt_state[i].attrib = ATTRIB;
+        vt_state[i].cur_cmd_idx = 0;
+        vt_state[i].cur_cmd_cnt = 0;
     }
     vt_state[0].video_mem = (char*)VIDEO;
 }
@@ -117,6 +128,19 @@ int32_t vt_close(int32_t id) {                              // return 0 as requi
     return 0;
 }
 
+static int32_t vt_read_raw(void* buf, int32_t nbytes) {
+    while (vt_state[cur_vt].input_buf_ptr == 0);
+    cli();
+    int i;
+    for (i = 0; i < nbytes && i < vt_state[cur_vt].input_buf_ptr; i++) {
+        ((char*)buf)[i] = vt_state[cur_vt].input_buf[i];
+    }
+    memcpy(vt_state[cur_vt].input_buf, &vt_state[cur_vt].input_buf[i], vt_state[cur_vt].input_buf_ptr - i);
+    vt_state[cur_vt].input_buf_ptr -= i;
+    sti();
+    return i;
+}
+
 /* vt_read
  *   DESCRIPTION: Read from virtual terminal.
  *   INPUTS: fd -- should be 0, which is stdin
@@ -130,6 +154,8 @@ int32_t vt_read(int32_t fd, void* buf, int32_t nbytes) {
     if (buf == NULL || nbytes < 0 || fd != 0)
         return -1;
 
+    if (vt_state[cur_vt].raw)
+        return vt_read_raw(buf, nbytes);
     cli();
     vt_state[cur_vt].input_buf_ptr = 0;
     sti();
@@ -167,6 +193,64 @@ int32_t vt_write(int32_t fd, const void* buf, int32_t nbytes) {
         return -1;
     int i;
     for (i = 0; i < nbytes; i++) {
+        if (vt_state[cur_vt].raw && ((char*)buf)[i] == '\x1b' && ((char*)buf)[i+1] == '[') {
+            char * video_mem = vt_state[cur_vt].video_mem;
+            char attrib = vt_state[cur_vt].attrib;
+            if (strncmp(((char*)buf) + i, "\x1b[2J", 4) == 0) {
+                int x, y;
+                for (y = 0; y < NUM_ROWS; y++) {
+                    for (x = 0; x < NUM_COLS; x++) {
+                        *(uint8_t *)(video_mem + ((NUM_COLS * y + x) << 1)) = ' ';
+                        *(uint8_t *)(video_mem + ((NUM_COLS * y + x) << 1) + 1) = attrib;
+                    }
+                }
+                i += 3;
+                continue;
+            }
+            if (strncmp(((char*)buf) + i, "\x1b[H", 3) == 0) {
+                vt_state[cur_vt].screen_x = 0;
+                vt_state[cur_vt].screen_y = 0;
+                redraw_cursor(cur_vt);
+                i += 2;
+                continue;
+            }
+            if (strncmp(((char*)buf) + i, "\x1b[K", 3) == 0) {
+                int x;
+                for (x = vt_state[cur_vt].screen_x; x < NUM_COLS; x++) {
+                    *(uint8_t *)(video_mem + ((NUM_COLS * vt_state[cur_vt].screen_y + x) << 1)) = ' ';
+                    *(uint8_t *)(video_mem + ((NUM_COLS * vt_state[cur_vt].screen_y + x) << 1) + 1) = attrib;
+                }
+                i += 2;
+                continue;
+            }
+            if (((char*)buf)[i+7] == 'H' && ((char*)buf)[i+4] == ';') {
+                int screen_y = atoi(((char*)buf)[i+2]) * 10 + atoi(((char*)buf)[i+3]);
+                int screen_x = atoi(((char*)buf)[i+5]) * 10 + atoi(((char*)buf)[i+6]);
+                if (screen_y >= 0 && screen_y < NUM_ROWS && screen_x >= 0 && screen_x < NUM_COLS) {
+                    vt_state[cur_vt].screen_y = screen_y;
+                    vt_state[cur_vt].screen_x = screen_x;
+                }
+                redraw_cursor(cur_vt);
+                i += 7;
+                continue;
+            }
+            if (((char *)buf)[i+7] == 'M' && ((char *)buf)[i+4] == ';') {
+                char foreground, background;
+                if (((char *)buf)[i+2] == '3') {
+                    foreground = atoi(((char *)buf)[i+3]);
+                } else {
+                    foreground = atoi(((char *)buf)[i+3]) + 8;
+                }
+                if (((char *)buf)[i+5] == '4') {
+                    background = atoi(((char *)buf)[i+6]);
+                } else {
+                    background = atoi(((char *)buf)[i+6]) + 8;
+                }
+                vt_state[cur_vt].attrib = (background << 4) | foreground;
+                i += 7;
+                continue;
+            }
+        }
         vt_putc(((char*)buf)[i], 0);
     }
     return i;
@@ -181,13 +265,14 @@ int32_t vt_write(int32_t fd, const void* buf, int32_t nbytes) {
  */
 static void scroll_page(int term_idx) {
     char * video_mem = vt_state[term_idx].video_mem;
+    char attrib = vt_state[term_idx].attrib;
     int i;
     for (i = 0; i < NUM_ROWS - 1; i++) {
         memcpy(video_mem + ((NUM_COLS * i) * 2), video_mem + ((NUM_COLS * (i + 1)) * 2), NUM_COLS * 2 * sizeof(char));
     }
     for (i = 0; i < NUM_COLS; i++) {
         *(uint8_t *)(video_mem + ((NUM_COLS * (NUM_ROWS - 1) + i) << 1)) = ' ';
-        *(uint8_t *)(video_mem + ((NUM_COLS * (NUM_ROWS - 1) + i) << 1) + 1) = ATTRIB;
+        *(uint8_t *)(video_mem + ((NUM_COLS * (NUM_ROWS - 1) + i) << 1) + 1) = attrib;
     }
 }
 
@@ -216,6 +301,7 @@ static void print_newline(int term_idx) {
  */
 static void print_backspace(int term_idx) {
     char * video_mem = vt_state[term_idx].video_mem;
+    char attrib = vt_state[term_idx].attrib;
     vt_state[term_idx].screen_x--;
     if (vt_state[term_idx].screen_x < 0) {
         vt_state[term_idx].screen_x = NUM_COLS - 1;
@@ -226,7 +312,7 @@ static void print_backspace(int term_idx) {
         }
     }
     *(uint8_t *)(video_mem + ((NUM_COLS * vt_state[term_idx].screen_y + vt_state[term_idx].screen_x) << 1)) = ' ';
-    *(uint8_t *)(video_mem + ((NUM_COLS * vt_state[term_idx].screen_y + vt_state[term_idx].screen_x) << 1) + 1) = ATTRIB;
+    *(uint8_t *)(video_mem + ((NUM_COLS * vt_state[term_idx].screen_y + vt_state[term_idx].screen_x) << 1) + 1) = attrib;
 }
 
 /* redraw_cursor (PRIVATE)
@@ -301,6 +387,11 @@ static void process_default(keycode_t keycode, int release) {
         return;
     }
 
+    if (vt_state[foreground_vt].kbd.ctrl && keycode == KEY_M) { // Ctrl + M
+        show_memory_usage();        // show memory usage
+        return;
+    }
+
     /* Echo printable characters */
     if (keycode == KEY_RESERVED || keycode > KEY_SPACE) // KEY_SPACE is the last printable character in keycode table
         return;
@@ -321,6 +412,16 @@ static void process_default(keycode_t keycode, int release) {
     vt_state[foreground_vt].input_buf_ptr++;
 }
 
+static inline void vt_keyboard_raw(keycode_t keycode, int release) {
+    if (vt_state[foreground_vt].input_buf_ptr >= INPUT_BUF_SIZE)
+        return;
+    if (release) {
+        keycode |= 0x80;
+    }
+    vt_state[foreground_vt].input_buf[vt_state[foreground_vt].input_buf_ptr] = keycode;
+    vt_state[foreground_vt].input_buf_ptr++;
+}
+
 /* vt_keyboard
  *   DESCRIPTION: Keyboard input handler for virtual terminal. 
                   This function is inside interrupt context!!!
@@ -330,6 +431,8 @@ static void process_default(keycode_t keycode, int release) {
  *   SIDE EFFECTS: none
  */
 void vt_keyboard(keycode_t keycode, int release) {
+    if (vt_state[foreground_vt].raw)
+        return vt_keyboard_raw(keycode, release);
     switch (keycode) {
         case KEY_LEFTSHIFT:
         case KEY_RIGHTSHIFT:
@@ -344,6 +447,21 @@ void vt_keyboard(keycode_t keycode, int release) {
             break;
         case KEY_ENTER:
             if (!release) {
+                if(vt_state[foreground_vt].cur_cmd_cnt < NUM_HIST){
+                    memset(vt_state[foreground_vt].buf_history[vt_state[foreground_vt].cur_cmd_cnt], '\0', sizeof(vt_state[foreground_vt].buf_history[vt_state[foreground_vt].cur_cmd_cnt]));
+                    memcpy(vt_state[foreground_vt].buf_history[vt_state[foreground_vt].cur_cmd_cnt], vt_state[foreground_vt].input_buf, vt_state[foreground_vt].input_buf_ptr * sizeof(char));
+                    vt_state[foreground_vt].cur_cmd_cnt++;
+                }
+                else{
+                    int i;
+                    for(i = 0; i < NUM_HIST - 1; i++){
+                        memset(vt_state[foreground_vt].buf_history[i], '\0', sizeof(vt_state[foreground_vt].buf_history[i]));
+                        strcpy(vt_state[foreground_vt].buf_history[i], vt_state[foreground_vt].buf_history[i + 1]);
+                    }
+                    memset(vt_state[foreground_vt].buf_history[NUM_HIST - 1], '\0', sizeof(vt_state[foreground_vt].buf_history[NUM_HIST - 1]));    
+                    memcpy(vt_state[foreground_vt].buf_history[NUM_HIST - 1], vt_state[foreground_vt].input_buf, vt_state[foreground_vt].input_buf_ptr * sizeof(char));
+                }
+                vt_state[foreground_vt].cur_cmd_idx = vt_state[foreground_vt].cur_cmd_cnt;
                 vt_putc('\n', 1);
                 vt_state[foreground_vt].input_buf[vt_state[foreground_vt].input_buf_ptr] = '\n';
                 vt_state[foreground_vt].input_buf_ptr++;
@@ -370,7 +488,19 @@ void vt_keyboard(keycode_t keycode, int release) {
             }
             break;
         case KEY_TAB:
-            process_default(KEY_SPACE, release); // Treat tab as space, easier to implement
+            if (!release){
+                command_completion();
+            }
+            break;
+        case KEY_ARROW_UP:
+            if (!release){
+                command_history(1);
+            }
+            break;
+        case KEY_ARROW_DOWN:
+            if (!release){
+                command_history(2);
+            }
             break;
         default:
             process_default(keycode, release);
@@ -401,8 +531,9 @@ void vt_putc(char c, int kbd) {
         print_backspace(term_idx);
     } else {
         char * video_mem = vt_state[term_idx].video_mem;
+        char attrib = vt_state[term_idx].attrib;
         *(uint8_t *)(video_mem + ((NUM_COLS * vt_state[term_idx].screen_y + vt_state[term_idx].screen_x) << 1)) = c;
-        *(uint8_t *)(video_mem + ((NUM_COLS * vt_state[term_idx].screen_y + vt_state[term_idx].screen_x) << 1) + 1) = ATTRIB;
+        *(uint8_t *)(video_mem + ((NUM_COLS * vt_state[term_idx].screen_y + vt_state[term_idx].screen_x) << 1) + 1) = attrib;
         vt_state[term_idx].screen_x++;
         if (vt_state[term_idx].screen_x >= NUM_COLS)
             print_newline(term_idx);
@@ -478,4 +609,144 @@ int32_t bad_read_call(int32_t fd, void* buf, int32_t nbytes) {
  */
 int32_t bad_write_call(int32_t fd, const void* buf, int32_t nbytes) {
     return -1;
+}
+
+
+char all_cmds[NUM_CMDS][32] = {"cat","grep","hello","ls","pingpong","counter","shell","sigtest","testprint","syserr","fish"};
+
+void command_completion(){
+    if(vt_state[foreground_vt].input_buf_ptr == 0 || vt_state[foreground_vt].input_buf_ptr > 32){
+        return;
+    }
+    int i, have_space = 0;
+    for(i = 0; i < vt_state[foreground_vt].input_buf_ptr; i++){
+        if(vt_state[foreground_vt].input_buf[i] == ' '){
+            have_space = 1;
+            break;
+        }
+    }
+    if(have_space)
+        return;
+    for(i = 0; i < NUM_CMDS; i++){
+        if(vt_state[foreground_vt].input_buf_ptr >= strlen(all_cmds[i]))
+            continue;
+        if(strncmp(all_cmds[i], vt_state[foreground_vt].input_buf, vt_state[foreground_vt].input_buf_ptr) == 0){
+            while(vt_state[foreground_vt].input_buf_ptr > 0){
+                vt_state[foreground_vt].input_buf_ptr--;
+                vt_state[foreground_vt].input_buf[vt_state[foreground_vt].input_buf_ptr] = '\0';
+                vt_putc('\b', 1);
+            }
+            vt_state[foreground_vt].input_buf_ptr = strlen(all_cmds[i]);
+            strcpy(vt_state[foreground_vt].input_buf, all_cmds[i]);
+            int j;
+            for(j = 0; j < strlen(all_cmds[i]); j++)
+                vt_putc(all_cmds[i][j], 1);
+            break;
+        }
+    }
+    return;
+}
+
+int32_t vt_ioctl(int32_t flag) {
+    if (flag == 1) {
+        vt_state[cur_vt].raw = 1;
+    } else {
+        vt_state[cur_vt].raw = 0;
+    }
+    return 0;
+}
+
+/* vt_write_foreground
+ *   DESCRIPTION: Write to virtual terminal for the foreground vt.
+ *                This syscall does not recognize '\0' as the end of string.
+ *                It will simply write nbytes bytes to the screen.
+ *   INPUTS: fd -- should be 1, which is stdout
+ *           buf -- buffer to write from
+ *           nbytes -- number of bytes to write
+ *   OUTPUTS: none
+ *   RETURN VALUE: number of bytes written
+ *   SIDE EFFECTS: none
+ */
+int32_t vt_write_foreground(int32_t fd, const void* buf, int32_t nbytes) {
+    if (buf == NULL || nbytes < 0 || fd != 1)
+        return -1;
+    int i;
+    for (i = 0; i < nbytes; i++) {
+        vt_putc(((char*)buf)[i], 1);
+    }
+    return i;
+}
+
+/* show_memory_usage - display the memory usage for all the pcb
+ * Inputs: None
+ * Outputs: the memory usage
+ * Return: 0 if show successfully, -1 otherwise
+ */
+int32_t show_memory_usage(void){
+    int32_t i, j, counter, usage;
+    uint8_t buf[4];
+    vt_write_foreground(1, "\n+--------------+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+", 81);
+    vt_write_foreground(1, "| Memory Usage |", 16);
+    for(i = 0; i < 16; i++){
+        counter = 0;
+        for(j = 0; j < 64; j++){
+            if(dynamic_tables[i * 64 + j].P == 1){
+                counter++;
+            }
+        }
+        usage = (int32_t)(((float) counter / 64) * 100);
+        if( usage < 100){
+            buf[0] = '0' + (usage / 10) % 10;
+            buf[1] = '0' + usage % 10;
+            buf[2] = '%';
+            buf[3] = '|';
+        } else {
+            buf[0] = '1';
+            buf[1] = '0';
+            buf[2] = '0';
+            buf[3] = '|';
+        }
+        vt_write_foreground(1, buf, 4);
+    }
+    vt_write_foreground(1, "+--------------+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+", 80);
+    return 0;
+}
+
+void command_history(int type){
+    if(type == 1){
+        if(vt_state[foreground_vt].cur_cmd_cnt == 0)
+            return;
+        if(vt_state[foreground_vt].cur_cmd_idx == 0)
+            return;
+        while(vt_state[foreground_vt].input_buf_ptr > 0){
+            vt_state[foreground_vt].input_buf_ptr--;
+            vt_state[foreground_vt].input_buf[vt_state[foreground_vt].input_buf_ptr] = '\0';
+            vt_putc('\b', 1);
+        }
+        vt_state[foreground_vt].cur_cmd_idx--;
+        vt_state[foreground_vt].input_buf_ptr = strlen(vt_state[foreground_vt].buf_history[vt_state[foreground_vt].cur_cmd_idx]);
+        memset(vt_state[foreground_vt].input_buf, '\0', sizeof(vt_state[foreground_vt].input_buf));    
+        strcpy(vt_state[foreground_vt].input_buf, vt_state[foreground_vt].buf_history[vt_state[foreground_vt].cur_cmd_idx]);
+        int j;
+        for(j = 0; j < strlen(vt_state[foreground_vt].buf_history[vt_state[foreground_vt].cur_cmd_idx]); j++)
+            vt_putc(vt_state[foreground_vt].buf_history[vt_state[foreground_vt].cur_cmd_idx][j], 1);
+    }
+    else if(type == 2){
+        if(vt_state[foreground_vt].cur_cmd_cnt == 0)
+            return;
+        if(vt_state[foreground_vt].cur_cmd_idx >= vt_state[foreground_vt].cur_cmd_cnt - 1)
+            return;
+        while(vt_state[foreground_vt].input_buf_ptr > 0){
+            vt_state[foreground_vt].input_buf_ptr--;
+            vt_state[foreground_vt].input_buf[vt_state[foreground_vt].input_buf_ptr] = '\0';
+            vt_putc('\b', 1);
+        }
+        vt_state[foreground_vt].cur_cmd_idx++;
+        vt_state[foreground_vt].input_buf_ptr = strlen(vt_state[foreground_vt].buf_history[vt_state[foreground_vt].cur_cmd_idx]);
+        memset(vt_state[foreground_vt].input_buf, '\0', sizeof(vt_state[foreground_vt].input_buf));    
+        strcpy(vt_state[foreground_vt].input_buf, vt_state[foreground_vt].buf_history[vt_state[foreground_vt].cur_cmd_idx]);
+        int j;
+        for(j = 0; j < strlen(vt_state[foreground_vt].buf_history[vt_state[foreground_vt].cur_cmd_idx]); j++)
+            vt_putc(vt_state[foreground_vt].buf_history[vt_state[foreground_vt].cur_cmd_idx][j], 1);
+    }
 }

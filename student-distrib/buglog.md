@@ -104,3 +104,27 @@
 > 	Initially, I check my code carefully and make sure the page structure is set up correctly. However, after checking, I find that I only set the PDE entry of vidmap page structure without setting the PTE entry of vidmap.
 > **Solution** 
 > 	The solution is to set the PTE entry after setting PDE entry, including letting ADDR field pointing to physical video memory, setting P field to 1 to indicate PTE is activated and so on.
+
+>[!Bug 11]
+> **Description**
+>   Keyboard input is being displayed on the other terminal.
+> **Analysis**
+>   Our previous implementation of terminal is not aware of the distinction between a foreground terminal and a background terminal (actually being run by scheduler). So when we type something, the input alwyas goes to the background terminal.
+> **Solution**
+>   The solution is to keep track of both foreground terminal and background terminal. When we type something, we put input into the foreground terminal.
+
+>[!Bug 12]
+> **Description**
+>    Sometimes fish and pingpong won't do anything.
+> **Analysis**
+>   The problem is that though we have already separated foreground and background, we forgot to update the address that vidmap PTE points to. So when we switch to a new terminal, the vidmap PTE still points to the old terminal.
+> **Solution**
+>   The solution is to update the address that vidmap PTE points to when we switch to a new terminal.
+
+>[!Bug 13]
+> **Description**
+>    System rebooted when we halt the base shell.
+> **Analysis**
+>    Our previous implementation of __halt assume only one vt, so it checks whether pid is 0 or not to determine whether it is the base shell. However, when we have multiple vt, the pid of base shell is not necessarily 0.
+> **Solution**
+>   The solution is to change the check into `if (pid < NUM_TERMS)`, this is guaranteed to be true for base shell because they're the first NUM_TERMS processes in our implementation.

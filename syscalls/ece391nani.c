@@ -112,6 +112,8 @@ typedef struct nani_state {
     struct editor_syntax *syntax;
 } nani_state_t;
 
+#define HLDB_ENTRIES (sizeof(HLDB) / sizeof(HLDB[0]))
+
 static char *C_HL_extensions[] = {".c", ".h", ".cpp", NULL};
 
 static char *C_HL_keywords[] = {
@@ -247,7 +249,26 @@ void NANI_syntax_to_color(int hl) {
 }
 
 void NANI_select_syntax() {
-    NANI.syntax = &HLDB[1];
+    NANI.syntax = &HLDB[0];
+    if (NANI.filename[0] == '\0') return;
+
+    int i, len = ece391_strlen((uint8_t *)NANI.filename);
+    for (i = len - 1; i >= 0; i--) {
+        if (NANI.filename[i] == '.') break;
+    }
+    if (i == -1) return;
+
+    int j;
+    for (j = 1; j < HLDB_ENTRIES; j++) {
+        char **exts = HLDB[j].filematch;
+        while (*exts) {
+            if (ece391_strcmp((uint8_t *)&NANI.filename[i], (uint8_t *)*exts) == 0) {
+                NANI.syntax = &HLDB[j];
+                return;
+            }
+            exts++;
+        }
+    }
 }
 
 void erow_update_syntax(erow_t *row) {

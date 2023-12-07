@@ -10,7 +10,12 @@
 //     while(1); 
 // }
 
-GENERATE_EXCEPTION_HANDLER(0, "devide by zero", exc_divide_error)
+extern void __exc_divide_error()
+{
+    printf("Exception 0x%x: " "divide by zero" "\n" , 0);
+    send_signal(SIGNUM_DIV_ZERO);
+}
+
 GENERATE_EXCEPTION_HANDLER(1, "debug", exc_debug)
 GENERATE_EXCEPTION_HANDLER(2, "non-maskable interrupt", exc_nmi)
 GENERATE_EXCEPTION_HANDLER(3, "breakpoint", exc_breakpoint)

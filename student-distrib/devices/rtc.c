@@ -4,6 +4,7 @@
 #include "../filesys.h"
 #include "../pcb.h"
 #include "../GUI/gui.h"
+#include "../signal.h"
 
 volatile int32_t max_freq = 32;
 volatile int32_t min_rate = 11;

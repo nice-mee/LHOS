@@ -10,7 +10,18 @@
 //     while(1); 
 // }
 
-GENERATE_EXCEPTION_HANDLER(0, "devide by zero", exc_divide_error)
+extern void __exc_divide_error()
+{
+    printf("Exception 0x%x: " "divide by zero" "\n" , 0);
+    send_signal(SIGNUM_DIV_ZERO);
+}
+
+extern void __exc_page_fault()
+{
+    printf("Exception 0x%x: " "page fault" "\n" , 0);
+    send_signal(SIGNUM_SEGFAULT);
+}
+
 GENERATE_EXCEPTION_HANDLER(1, "debug", exc_debug)
 GENERATE_EXCEPTION_HANDLER(2, "non-maskable interrupt", exc_nmi)
 GENERATE_EXCEPTION_HANDLER(3, "breakpoint", exc_breakpoint)
@@ -24,7 +35,6 @@ GENERATE_EXCEPTION_HANDLER(10, "invalid TSS", exc_invalid_TSS)
 GENERATE_EXCEPTION_HANDLER(11, "segment not present", exc_segment_not_present)
 GENERATE_EXCEPTION_HANDLER(12, "stack segment fault", exc_stack_fault)
 GENERATE_EXCEPTION_HANDLER(13, "general protection", exc_general_protection)
-GENERATE_EXCEPTION_HANDLER(14, "page fault", exc_page_fault)
 GENERATE_EXCEPTION_HANDLER(16, "floating point error", exc_FPU_error)
 GENERATE_EXCEPTION_HANDLER(17, "alignment check", exc_alignment_check)
 GENERATE_EXCEPTION_HANDLER(18, "machine check", exc_machine_check)

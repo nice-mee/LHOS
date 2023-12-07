@@ -521,6 +521,7 @@ void NANI_delete_row(int at) {
         ece391_memcpy(&NANI.row[i], &NANI.row[i + 1], sizeof(erow_t));
     }
     NANI.numrows--;
+    NANI.dirty++;
 }
 
 
@@ -538,6 +539,7 @@ void NANI_insert_row(int at, char *s, int32_t len) {
     erow_update_render(&NANI.row[at]);
 
     NANI.numrows++;
+    NANI.dirty++;
 }
 
 void NANI_delete_char() {
@@ -737,6 +739,22 @@ static void NANI_move_cursor(char c) {
 
 static void NANI_process_normal_key(char c) {
     if (c & 0x80) return; // ignore releases
+    switch (c) {
+        case KEY_ARROW_DOWN:
+            NANI_move_cursor('j');
+            break;
+        case KEY_ARROW_UP:
+            NANI_move_cursor('k');
+            break;
+        case KEY_ARROW_LEFT:
+            NANI_move_cursor('h');
+            break;
+        case KEY_ARROW_RIGHT:
+            NANI_move_cursor('l');
+            break;
+        default:
+            break;
+    }
     char printable_char;
     if (c >= KEY_A && c <= KEY_Z) {
         printable_char = keycode_to_printable_char[NANI.kbd.shift ^ NANI.kbd.caps][(int)c];
@@ -844,6 +862,18 @@ static void NANI_process_insert_key(char c) {
             break;
         case KEY_ENTER:
             NANI_insert_newline();
+            break;
+        case KEY_ARROW_DOWN:
+            NANI_move_cursor('j');
+            break;
+        case KEY_ARROW_UP:
+            NANI_move_cursor('k');
+            break;
+        case KEY_ARROW_LEFT:
+            NANI_move_cursor('h');
+            break;
+        case KEY_ARROW_RIGHT:
+            NANI_move_cursor('l');
             break;
         default:
             NANI_process_insert_default(c);
@@ -1101,6 +1131,7 @@ static int32_t NANI_open(int32_t fd) {
         linelen--;
         NANI_insert_row(NANI.numrows, line_buf, linelen);
     }
+    NANI.dirty = 0;
     return 0;
 }
 

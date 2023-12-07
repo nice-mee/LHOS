@@ -24,6 +24,7 @@ extern int32_t ece391_sigreturn (void);
 extern void* ece391_malloc(int32_t size);
 extern int32_t ece391_free(void* ptr);
 extern int32_t ece391_ioctl(int32_t fd, int32_t flag);
+extern int32_t ece391_ps(void);
 
 enum signums {
 	DIV_ZERO = 0,

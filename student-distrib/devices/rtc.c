@@ -3,10 +3,11 @@
 #include "../i8259.h"
 #include "../filesys.h"
 #include "../pcb.h"
+#include "../GUI/gui.h"
 #include "../signal.h"
 
-volatile int32_t max_freq = 2;
-volatile int32_t min_rate = 1;
+volatile int32_t max_freq = 32;
+volatile int32_t min_rate = 11;
 
 /* struct storing frequency and counter for process with
 different frequencies. Used to implement virtualization */
@@ -16,6 +17,7 @@ typedef struct {
 } proc_freqcount_pair;
 
 static proc_freqcount_pair RTC_proc_list[MAX_PROC_NUM];
+static int GUI_counter;
 
 operation_table_t RTC_operation_table = {
     .open_operation = RTC_open,
@@ -52,6 +54,7 @@ void RTC_init(void) {
         RTC_proc_list[i].proc_freq = 2;
         RTC_proc_list[i].proc_count = max_freq / 2;
     }
+    GUI_counter = (max_freq / 2);
 
     enable_irq(RTC_IRQ);
 }
@@ -114,6 +117,7 @@ void set_RTC_freq(void) {
     for(i=0; i < MAX_PROC_NUM; i++) {
         RTC_proc_list[i].proc_count = max_freq / RTC_proc_list[i].proc_freq;
     }
+    GUI_counter = (max_freq / 2);
 }
 
 
@@ -134,6 +138,13 @@ void __intr_RTC_handler(void) {
     for (pid = 0; pid < MAX_PROC_NUM; ++pid) {
             RTC_proc_list[pid].proc_count --;
     }
+    get_date();
+    fill_terminal();
+    /*if(--GUI_counter == 0) {
+        fill_terminal();
+        GUI_counter = (max_freq / 2);
+    }
+    sti();*/
     outb(RTC_C &0x0F, RTC_PORT); // select register C
     inb(RTC_CMOS_PORT);		    // just throw away contents
 
@@ -214,6 +225,7 @@ int32_t RTC_read(int32_t fd, void* buf, int32_t nbytes) {
     cli();
     if(RTC_proc_list[proc_id].proc_freq)
         RTC_proc_list[proc_id].proc_count = max_freq / RTC_proc_list[proc_id].proc_freq;
+        RTC_proc_list[proc_id].proc_count = max_freq / RTC_proc_list[proc_id].proc_freq;
     sti();
     return 0;
 }
@@ -244,6 +256,11 @@ int32_t RTC_write(int32_t fd, const void* buf, int32_t nbytes) {
     int32_t proc_id = get_current_pid();
     cli();
     RTC_proc_list[proc_id].proc_freq = freq;
+    if(freq > max_freq) {
+        max_freq = freq;
+        set_RTC_freq();
+    }
+    RTC_proc_list[proc_id].proc_count = max_freq / freq;
     if(freq > max_freq) {
         max_freq = freq;
         set_RTC_freq();

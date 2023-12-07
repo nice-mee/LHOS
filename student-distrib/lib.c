@@ -3,14 +3,12 @@
 
 #include "lib.h"
 
-#define VIDEO       0xB8000
 #define NUM_COLS    80
 #define NUM_ROWS    25
 #define ATTRIB      0x7
 
 // static int screen_x;
 // static int screen_y;
-static char* video_mem = (char *)VIDEO;
 
 int atoi(char a) {
     return a - '0';
@@ -21,6 +19,7 @@ int atoi(char a) {
  * Return Value: none
  * Function: Clears video memory */
 void clear(void) {
+    char *video_mem = vt_state[foreground_vt].video_mem;
     int32_t i;
     for (i = 0; i < NUM_ROWS * NUM_COLS; i++) {
         *(uint8_t *)(video_mem + (i << 1)) = ' ';
@@ -463,9 +462,9 @@ int8_t* strncpy(int8_t* dest, const int8_t* src, uint32_t n) {
  * Inputs: void
  * Return Value: void
  * Function: increments video memory. To be used to test rtc */
-void test_interrupts(void) {
-    int32_t i;
-    for (i = 0; i < NUM_ROWS * NUM_COLS; i++) {
-        video_mem[i << 1]++;
-    }
-}
+// void test_interrupts(void) {
+//     int32_t i;
+//     for (i = 0; i < NUM_ROWS * NUM_COLS; i++) {
+//         video_mem[i << 1]++;
+//     }
+// }

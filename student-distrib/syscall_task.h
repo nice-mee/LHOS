@@ -5,6 +5,7 @@
 #include "pcb.h"
 #include "devices/rtc.h"
 #include "devices/vt.h"
+#include "date.h"
 
 #define FILE_NAME_LEN 32  // 32B to store file name in FS
 #define MAX_ARG_NUM 24
@@ -30,6 +31,9 @@ int32_t __syscall_vidmap(uint8_t** screen_start);
 int32_t __syscall_set_handler(int32_t signum, void* handler_address);
 int32_t __syscall_sigreturn(void);
 int32_t __syscall_ioctl(int32_t fd, int32_t flag);
+int32_t __syscall_ps(void);
+int32_t __syscall_date(void);
+int32_t __syscall_donut(void);
 
 /*
  *       / \__

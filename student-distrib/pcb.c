@@ -67,3 +67,8 @@ int32_t free_pid(int32_t pid)
     pid_occupied[pid] = 0;
     return 0;
 }
+
+int32_t check_pid_occupied(int32_t pid)
+{
+    return pid_occupied[pid];
+}

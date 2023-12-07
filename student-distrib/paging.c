@@ -5,6 +5,7 @@
 #include "paging.h"
 #include "dynamic_alloc.h"
 #include "lib.h"
+#include "GUI/bga.h"
 
 void paging_init(){
     
@@ -51,6 +52,15 @@ void paging_init(){
     page_table[VID_MEM_POS + 2].ADDR = VID_MEM_POS + 2;
     page_table[VID_MEM_POS + 3].P = 1;
     page_table[VID_MEM_POS + 3].ADDR = VID_MEM_POS + 3;
+
+    page_table[GUI_VID_MEM_POS].P    = 1;
+    page_table[GUI_VID_MEM_POS].ADDR = GUI_VID_MEM_POS;
+    page_table[GUI_VID_MEM_POS + 1].P = 1;
+    page_table[GUI_VID_MEM_POS + 1].ADDR = GUI_VID_MEM_POS + 1;
+    page_table[GUI_VID_MEM_POS + 2].P = 1;
+    page_table[GUI_VID_MEM_POS + 2].ADDR = GUI_VID_MEM_POS + 2;
+    page_table[GUI_VID_MEM_POS + 3].P = 1;
+    page_table[GUI_VID_MEM_POS + 3].ADDR = GUI_VID_MEM_POS + 3;
 
     // Initialize page directories
     for (i = 0; i < DIR_TBL_SIZE; i++) {
@@ -113,6 +123,12 @@ void paging_init(){
     page_directory[(NANI_STATIC_BUF_ADDR + 3 * FOUR_MB) >> 22].PS = 1;
     page_directory[(NANI_STATIC_BUF_ADDR + 3 * FOUR_MB) >> 22].ADDR = (NANI_STATIC_BUF_ADDR + 2 * FOUR_MB) >> 12;
 
+
+    // Set a page for GUI
+    uint32_t vbe_index = QEMU_BASE_ADDR >> 22;
+    page_directory[vbe_index].P = 1;
+    page_directory[vbe_index].PS = 1;
+    page_directory[vbe_index].ADDR = QEMU_BASE_ADDR >> 12;
 
     // Code for manipulating control registers to enable paging.
     asm volatile(

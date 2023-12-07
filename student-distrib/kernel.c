@@ -17,6 +17,8 @@
 #include "devices/vt.h"
 #include "syscall_task.h"
 #include "dynamic_alloc.h"
+#include "GUI/gui.h"
+#include "GUI/bga.h"
 
 #define RUN_TESTS
 
@@ -165,6 +167,7 @@ void entry(unsigned long magic, unsigned long addr) {
     /* Initialize paging */
     paging_init();
     dynamic_allocation_init();
+
 
     /* Enable interrupts */
     /* Do not enable the following until after you have set up your

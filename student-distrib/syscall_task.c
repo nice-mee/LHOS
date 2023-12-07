@@ -198,7 +198,6 @@ int32_t __syscall_execute(const uint8_t* command) {
         return INVALID_CMD; // no available pid
     }
     set_user_PDE(pid);
-    vt_set_active_pid(pid); // cp5, record the active process of a vt
 
     // User-level Program Loader
     dentry_t cur_dentry;
@@ -213,6 +212,7 @@ int32_t __syscall_execute(const uint8_t* command) {
     pcb_t* cur_pcb = create_pcb(pid, parent_pcb);
     /* Write arguments in pcb */
     memcpy(cur_pcb->args, args, ARG_LEN + 1);
+    vt_set_active_pid(pid); // cp5, record the active process of a vt
 
     // initialize pcb's signal structure
     for(i = 0; i < SIG_NUM; i++){
@@ -483,3 +483,69 @@ int32_t __syscall_free(void* ptr){
     show_memory_usage();
     return ret;
 }
+
+int32_t __syscall_ps(void) {
+    uint32_t cur_pid;
+    for (cur_pid = 0; cur_pid < MAX_PID_NUM; ++cur_pid) {
+        pcb_t* cur_pcb = get_pcb_by_pid(cur_pid);
+        if(check_pid_occupied(cur_pid) == 0) { // pid not in used
+            continue;
+        } 
+        printf("PID: %d ", cur_pid);
+        printf("VT: %d" , cur_pcb->vt);
+        if(cur_pid == vt_check_active_pid(cur_pcb->vt)) {
+            printf(" STATUS: ACTIVE\n");
+        }
+        else {
+            printf(" STATUS: NOT ACTIVE\n");
+        }
+    }
+    int32_t vt_id;
+    int32_t active_pid;
+    for(vt_id = 0; vt_id < NUM_TERMS; ++vt_id) {
+        active_pid = vt_check_active_pid(vt_id);
+        if(active_pid == -1) {
+            printf("VT %d has no active process", vt_id); // actually never appears
+        }
+        else {
+            printf("VT %d's active process has pid %d", vt_id, active_pid);
+        }
+        printf("\n");
+    }
+    return 0;
+}
+
+int32_t __syscall_date(void) {
+    get_date();
+    printf("%d/%d/%d ", month, day, year);
+    if(hour == 0) {
+        printf("00:");
+    }
+    else {
+        if(hour < 10) {
+            printf("0");
+        }
+        printf("%d:", hour);
+    }
+    if(min == 0) {
+        printf("00:");
+    }
+    else {
+        if(min < 10) {
+            printf("0");
+        }
+        printf("%d:", min);
+    }
+    if(sec == 0) {
+        
+        printf("00\n");
+    }
+    else {
+        if(sec < 10) {
+            printf("0");
+        }
+        printf("%d\n", sec);
+    }
+    return 0;
+}
+

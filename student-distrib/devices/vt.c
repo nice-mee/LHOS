@@ -3,7 +3,7 @@
 
 #include "vt.h"
 
-#define VIDEO       0xB8000
+#define VIDEO       0xE0000
 #define FOUR_KB     0x1000
 #define VID_BUF_SIZE (80 * 25 * 2)
 #define NUM_COLS    80

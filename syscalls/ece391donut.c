@@ -3,12 +3,12 @@
 #include "ece391support.h"
 #include "ece391syscall.h"
 
-double pow(double base, int exponent) {
+float pow(float base, int exponent) {
     if (exponent == 0) {
         return 1; 
     }
     int i;
-    double result = 1;
+    float result = 1;
     if (exponent > 0) {
         for (i = 0; i < exponent; i++) {
             result *= base;
@@ -21,8 +21,8 @@ double pow(double base, int exponent) {
     return result;
 }
 
-double factorial(int n) {
-    double result = 1;
+float factorial(int n) {
+    float result = 1;
     int i;
     for (i = 2; i <= n; i++) {
         result *= i;
@@ -30,21 +30,21 @@ double factorial(int n) {
     return result;
 }
 
-double sin_approx(double x) {
-    double result = 0;
+float sin(float x) {
+    float result = 0;
     int i;
     for (i = 0; i < 10; i++) {
-        double term = (i % 2 == 0 ? 1 : -1) * pow(x, 2 * i + 1) / factorial(2 * i + 1);
+        float term = (i % 2 == 0 ? 1 : -1) * pow(x, 2 * i + 1) / factorial(2 * i + 1);
         result += term;
     }
     return result;
 }
 
-double cos_approx(double x) {
-    double result = 0;
+float cos(float x) {
+    float result = 0;
     int i;
     for (i = 0; i < 10; i++) {
-        double term = (i % 2 == 0 ? 1 : -1) * pow(x, 2 * i) / factorial(2 * i);
+        float term = (i % 2 == 0 ? 1 : -1) * pow(x, 2 * i) / factorial(2 * i);
         result += term;
     }
     return result;
@@ -52,35 +52,35 @@ double cos_approx(double x) {
 
 int main ()
 {
-    double A = 0, B = 0;
-    double j;
-    int i;
+    float A = 0, B = 0;
+    float j;
+    float i;
     int k;
-    double z[1760];
+    float z[1760];
     char b[1760];
-    char buffer[1024];
-    *buffer = "\x1b[2J";
-    ece391_fdputs(1, (uint8_t *)buffer);
+    ece391_ioctl(1, 1);
+    ece391_fdputs(1, (uint8_t *)"\x1b[2J");
     for(;;) {
-        for (i = 0; i < 1760; i++) {
-            b[i] = 32;
+        int idx;
+        for (idx = 0; idx < 1760; idx++) {
+            b[idx] = 32;
         }
-        for (i = 0; i < 1760; i++) {
-            z[i] = 0;
+        for (idx = 0; idx < 7040; idx++) {
+            z[idx] = 0;
         }
         for(j=0; j < 6.28; j += 0.07) {
             for(i=0; i < 6.28; i += 0.02) {
-                double c = sin_approx(i);
-                double d = cos_approx(j);
-                double e = sin_approx(A);
-                double f = sin_approx(j);
-                double g = cos_approx(A);
-                double h = d + 2;
-                double D = 1 / (c * h * e + f * g + 5);
-                double l = cos_approx(i);
-                double m = cos_approx(B);
-                double n = sin_approx(B);
-                double t = c * h * g - f * e;
+                float c = sin(i);
+                float d = cos(j);
+                float e = sin(A);
+                float f = sin(j);
+                float g = cos(A);
+                float h = d + 2;
+                float D = 1 / (c * h * e + f * g + 5);
+                float l = cos(i);
+                float m = cos(B);
+                float n = sin(B);
+                float t = c * h * g - f * e;
                 int x = 40 + 30 * D * (l * h * m - t * n);
                 int y= 12 + 15 * D * (l * h * n + t * m);
                 int o = x + 80 * y;
@@ -91,8 +91,7 @@ int main ()
                 }
             }
         }
-        *buffer = "\x1b[H";
-        ece391_fdputs(1, (uint8_t *)buffer);
+        ece391_fdputs(1, (uint8_t *)"\x1b[H");
         for(k = 0; k < 1761; k++) {
             char ch = k % 80 ? b[k] : 10;
             ece391_write(1, &ch, 1);
@@ -100,5 +99,6 @@ int main ()
             B += 0.00002;
         }
     }
+    ece391_ioctl(1, 0);
     return 0;
 }

@@ -1,0 +1,10 @@
+#define ASM
+
+.globl EXECUTE_SIGRETURN
+.globl EXECUTE_SIGRETURN_END
+
+EXECUTE_SIGRETURN:
+    movl $10, %eax
+    int $0x80
+    RET
+EXECUTE_SIGRETURN_END:

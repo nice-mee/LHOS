@@ -5,7 +5,7 @@
 
 🔭LHOS (Laughing Hippo OS) is a (partial) POSIX-compliant Unix-like operating system, course project of ECE391@FA23 UIUC.
 
-🤝This project is joint effort of :student[Chiming Ni](https://github.com/nice-mee), :student[Boyao (Bryan) Wang](https://github.com/Beryex), :student[Jiaheng Wen](https://github.com/CTerena) and :student[Qiushi Liu](https://github.com/Phemon).
+🤝This project is joint effort of [Chiming Ni](https://github.com/nice-mee), [Boyao (Bryan) Wang](https://github.com/Beryex), [Jiaheng Wen](https://github.com/CTerena) and [Qiushi Liu](https://github.com/Phemon).
 
 **DISCLAIMER**: You shall not copy any code from this repository as requested by the course policy. This repository contains many unique implementations that differ a lot from the "reference" implementations instructed in lectures. You are almost certainly going to be caught by the plagiarism detector.
 
